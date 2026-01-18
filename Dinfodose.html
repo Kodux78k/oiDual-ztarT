@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Fusion OS v9 • Architect</title>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    /* --- CORE VARIABLES --- */
+    :root {
+      --bg-deep: #030305;
+      --glass: rgba(255, 255, 255, 0.03);
+      --glass-border: rgba(255, 255, 255, 0.08);
+      
+      /* Dynamic Persona Colors (Default: Nexus) */
+      --theme-primary: #7afff5;   /* Cyan */
+      --theme-secondary: #3b82f6; /* Blue */
+      --theme-glow: rgba(122, 255, 245, 0.15);
+      
+      --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+      --font-mono: "SF Mono", "Fira Code", monospace;
+    }
+
+    /* --- BASE RESET --- */
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; user-select: none; }
+    body { 
+      background: var(--bg-deep); 
+      color: #fff; 
+      font-family: var(--font-ui);
+      overflow: hidden; 
+      height: 100vh; 
+      width: 100vw;
+    }
+
+    /* --- AMBIENT ATMOSPHERE --- */
+    #ambient-layer {
+      position: fixed; inset: 0; pointer-events: none; z-index: 0;
+      transition: opacity 1s ease;
+    }
+    .orb-glow {
+      position: absolute; border-radius: 50%; filter: blur(90px); opacity: 0.4;
+      transition: background 0.8s ease, transform 1s ease;
+    }
+    #glow-main { top: -10%; left: -10%; width: 70vw; height: 70vw; background: var(--theme-secondary); opacity: 0.15; }
+    #glow-sec { bottom: -10%; right: -10%; width: 80vw; height: 80vw; background: var(--theme-primary); opacity: 0.1; }
+
+    /* --- GESTURAL VIEW CONTAINER --- */
+    #view-viewport {
+      position: fixed; inset: 0; z-index: 10;
+      display: flex;
+      width: 300vw; /* 3 screens wide */
+      transform: translateX(0);
+      transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+      will-change: transform;
+    }
+
+    .screen {
+      width: 100vw; height: 100vh;
+      overflow-y: auto; overflow-x: hidden;
+      padding: 80px 24px 100px 24px; /* Safe areas */
+      opacity: 0.3; transform: scale(0.95);
+      transition: opacity 0.4s, transform 0.4s;
+      display: flex; flex-direction: column; align-items: center;
+    }
+    
+    .screen.active { opacity: 1; transform: scale(1); pointer-events: auto; }
+
+    /* --- COMPONENTS --- */
+    .glass-card {
+      background: var(--glass);
+      backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+      border: 1px solid var(--glass-border);
+      border-radius: 24px;
+      transition: all 0.3s ease;
+      position: relative; overflow: hidden;
+    }
+    .glass-card:active { transform: scale(0.98); background: rgba(255,255,255,0.05); }
+
+    .glass-pill {
+      background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 100px; padding: 6px 16px;
+      font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+      color: rgba(255,255,255,0.6);
+      transition: all 0.3s; cursor: pointer;
+    }
+    .glass-pill.active {
+      background: var(--theme-glow);
+      border-color: var(--theme-primary);
+      color: var(--theme-primary);
+    }
+
+    /* --- ANIMATIONS --- */
+    @keyframes breathe { 0%, 100% { transform: scale(1); opacity: 0.8; } 50% { transform: scale(1.05); opacity: 1; } }
+    @keyframes spin-slow { to { transform: rotate(360deg); } }
+    .animate-breathe { animation: breathe 6s ease-in-out infinite; }
+    .animate-spin-slow { animation: spin-slow 20s linear infinite; }
+
+    /* --- UI OVERLAYS --- */
+    #top-bar {
+      position: fixed; top: 0; left: 0; right: 0; height: 80px; z-index: 50;
+      display: flex; justify-content: space-between; items-items: center;
+      padding: 0 24px; background: linear-gradient(to bottom, var(--bg-deep), transparent);
+      pointer-events: none; /* Let clicks pass through except buttons */
+    }
+    
+    #nav-dots {
+      position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+      display: flex; gap: 8px; z-index: 50;
+    }
+    .nav-dot {
+      width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.2);
+      transition: all 0.3s;
+    }
+    .nav-dot.active { width: 24px; background: var(--theme-primary); box-shadow: 0 0 10px var(--theme-primary); }
+
+    /* --- KEYS MANAGER OVERRIDE --- */
+    #miniKeysBtn { top: auto !important; bottom: 30px !important; right: 24px !important; }
+    
+    /* Scroll hide */
+    ::-webkit-scrollbar { display: none; }
+  </style>
+</head>
+<body>
+
+  <div id="ambient-layer">
+    <div id="glow-main" class="orb-glow"></div>
+    <div id="glow-sec" class="orb-glow"></div>
+  </div>
+
+  <header id="top-bar">
+    <div class="flex items-center gap-3 pointer-events-auto mt-4" onclick="KeysManager.open()">
+      <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+      <div class="flex flex-col">
+        <span id="ui-username" class="text-[10px] font-bold tracking-[0.2em] uppercase text-white">CARREGANDO...</span>
+        <span id="ui-userid" class="text-[8px] font-mono text-white/40 tracking-widest">ID: ---</span>
+      </div>
+    </div>
+    
+    <div class="flex items-center gap-2 pointer-events-auto mt-4">
+      <button onclick="toggleAudio()" class="glass-pill"><i data-lucide="volume-2" class="w-3 h-3"></i></button>
+    </div>
+  </header>
+
+  <div id="view-viewport">
+    
+    <section class="screen active" id="screen-nexus">
+      <div class="flex-1 flex flex-col items-center justify-center relative w-full max-w-md mx-auto">
+        
+        <div class="relative w-64 h-64 mb-12 group cursor-pointer" onclick="Orb.interact()">
+          <div class="absolute inset-0 border border-white/5 rounded-full animate-spin-slow"></div>
+          <div class="absolute inset-4 border border-white/10 rounded-full animate-spin-slow" style="animation-direction: reverse; animation-duration: 15s;"></div>
+          
+          <div class="absolute inset-0 rounded-full blur-[50px] transition-colors duration-1000" style="background: var(--theme-glow)"></div>
+          <div class="absolute inset-8 rounded-full border border-white/10 bg-gradient-to-br from-white/5 to-transparent backdrop-blur-md flex items-center justify-center shadow-[inset_0_0_30px_rgba(255,255,255,0.05)]">
+            <div id="orb-core-light" class="w-20 h-20 rounded-full bg-white blur-xl opacity-20 animate-breathe"></div>
+          </div>
+        </div>
+
+        <h1 id="hero-title" class="text-4xl font-bold tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white to-white/40 mb-2">Nexus</h1>
+        <p id="hero-subtitle" class="text-[9px] uppercase tracking-[0.4em] text-white/30 font-light mb-8">Aguardando Protocolo</p>
+
+        <div class="grid grid-cols-2 gap-3 w-full px-4">
+          <button onclick="dose('gamma')" class="glass-card p-4 flex flex-col items-center gap-2 hover:bg-white/5">
+            <i data-lucide="zap" class="w-5 h-5" style="color: var(--theme-primary)"></i>
+            <span class="text-[9px] font-bold uppercase tracking-widest text-white/60">Foco</span>
+          </button>
+          <button onclick="dose('theta')" class="glass-card p-4 flex flex-col items-center gap-2 hover:bg-white/5">
+            <i data-lucide="moon" class="w-5 h-5 text-purple-400"></i>
+            <span class="text-[9px] font-bold uppercase tracking-widest text-white/60">Calma</span>
+          </button>
+        </div>
+
+      </div>
+      
+      <div class="mb-4 text-center">
+        <p class="text-[8px] text-white/20 uppercase tracking-[0.2em] animate-pulse">Deslize para navegar</p>
+      </div>
+    </section>
+
+    <section class="screen" id="screen-dualtube">
+      <div class="w-full max-w-md mx-auto pt-8">
+        <div class="mb-8 pl-2 border-l-2" style="border-color: var(--theme-secondary)">
+          <h2 class="text-2xl font-bold">DualTube</h2>
+          <p class="text-[10px] uppercase tracking-widest text-white/40">Fluxos de Alta Frequência</p>
+        </div>
+
+        <div id="video-grid" class="space-y-4 pb-20">
+          </div>
+      </div>
+    </section>
+
+    <section class="screen" id="screen-crystal">
+      <div class="w-full max-w-md mx-auto pt-8 flex flex-col h-full">
+        <div class="mb-6 pl-2 border-l-2 border-amber-500/50">
+          <h2 class="text-2xl font-bold text-amber-100">Cristalizados</h2>
+          <p class="text-[10px] uppercase tracking-widest text-white/40">Memória de Longo Prazo</p>
+        </div>
+
+        <div id="crystal-container" class="flex-1 overflow-y-auto space-y-3 pb-20">
+          <div class="text-center mt-20 opacity-30">
+            <i data-lucide="hexagon" class="w-12 h-12 mx-auto mb-3"></i>
+            <p class="text-xs uppercase tracking-widest">Vazio</p>
+          </div>
+        </div>
+        
+        <div class="glass-card p-4 mt-4">
+             <input type="text" id="crystal-input" placeholder="Cristalizar novo pensamento..." class="w-full bg-transparent border-none text-sm text-white placeholder-white/20">
+             <div class="flex justify-end mt-2">
+                 <button onclick="Crystal.add()" class="text-[9px] font-bold uppercase tracking-widest text-amber-400 hover:text-white transition">Salvar</button>
+             </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <div id="nav-dots">
+    <div class="nav-dot active"></div>
+    <div class="nav-dot"></div>
+    <div class="nav-dot"></div>
+  </div>
+
+  <div id="di_toast_container" class="fixed top-24 right-6 flex flex-col gap-2 z-[60] pointer-events-none"></div>
+
+  <div id="video-overlay" class="fixed inset-0 bg-black/95 z-[70] hidden flex-col transition-opacity duration-300 opacity-0">
+      <button onclick="DualTube.close()" class="absolute top-6 right-6 glass-pill bg-red-500/10 text-red-400 border-red-500/20">Fechar</button>
+      <div class="flex-1 flex items-center justify-center p-4">
+          <div id="yt-frame" class="w-full max-w-4xl aspect-video bg-black rounded-2xl overflow-hidden shadow-2xl border border-white/10"></div>
+      </div>
+  </div>
+
+  <script>
+    // --- 1. CONFIG & STATE ---
+    const STATE = {
+        screen: 0, // 0: Nexus, 1: DualTube, 2: Crystal
+        user: { name: 'Visitante', id: '000' },
+        persona: 'nexus',
+        audioCtx: null,
+        keys: {} // Will load from localStorage
+    };
+
+    const KEYS = {
+        USER: 'di_userName',
+        ID: 'di_userId',
+        API: 'di_apiKey',
+        PERSONA: 'di_assistantId',
+        CRYSTAL: 'di_cristalizados'
+    };
+
+    const PERSONAS = {
+        nexus: { color: '#7afff5', sec: '#3b82f6', title: 'Nexus', sub: 'Sistema Online' },
+        kodux: { color: '#a855f7', sec: '#ec4899', title: 'Kodux', sub: 'Arquitetura Cognitiva' },
+        gaia:  { color: '#10b981', sec: '#fbbf24', title: 'Gaia', sub: 'Bio-Sintonização' }
+    };
+
+    const VIDEOS = [
+        { id: "qldgs0aLdB0", title: "Frequência Base" },
+        { id: "Bt_rLbMjJDk", title: "Expansão Gamma" },
+        { id: "hfQ1L6fCfAo", title: "Estado de Fluxo" },
+        { id: "1L9_rFmIGJ8", title: "Sintonização Profunda" }
+    ];
+
+    // --- 2. INITIALIZATION ---
+    window.onload = () => {
+        lucide.createIcons();
+        Identity.load();
+        Theme.apply();
+        Gestures.init();
+        Crystal.render();
+        DualTube.renderGrid();
+        
+        // Setup Keys Manager Helper
+        if(window.DI_KEYS) window.DI_KEYS.init();
+    };
+
+    // --- 3. IDENTITY & THEME ---
+    const Identity = {
+        load: () => {
+            // Username
+            let name = localStorage.getItem(KEYS.USER);
+            if(!name) { 
+                name = "NEXUS_USER"; 
+                localStorage.setItem(KEYS.USER, name);
+            }
+            STATE.user.name = name;
+
+            // User ID
+            let uid = localStorage.getItem(KEYS.ID);
+            if(!uid) {
+                uid = "ID_" + Math.floor(Math.random() * 9999);
+                localStorage.setItem(KEYS.ID, uid);
+            }
+            STATE.user.id = uid;
+
+            // Render
+            document.getElementById('ui-username').innerText = STATE.user.name;
+            document.getElementById('ui-userid').innerText = STATE.user.id;
+            
+            // Check Persona
+            STATE.persona = localStorage.getItem(KEYS.PERSONA) || 'nexus';
+        }
+    };
+
+    const Theme = {
+        apply: () => {
+            const p = PERSONAS[STATE.persona] || PERSONAS.nexus;
+            const root = document.documentElement.style;
+            
+            root.setProperty('--theme-primary', p.color);
+            root.setProperty('--theme-secondary', p.sec);
+            root.setProperty('--theme-glow', `${p.color}20`); // 20 = low opacity hex
+            
+            document.getElementById('hero-title').innerText = p.title;
+            document.getElementById('hero-subtitle').innerText = p.sub;
+            
+            // Log Change
+            Toast.show(`Sistema: ${p.title} Ativo`);
+        }
+    };
+
+    // --- 4. GESTURES & NAVIGATION (THE CORE REQUEST) ---
+    const Gestures = {
+        startX: 0,
+        currentX: 0,
+        isDragging: false,
+        
+        init: () => {
+            const vp = document.getElementById('view-viewport');
+            
+            vp.addEventListener('touchstart', e => {
+                Gestures.startX = e.touches[0].clientX;
+                Gestures.isDragging = true;
+                vp.style.transition = 'none'; // Instant follow
+            }, {passive: true});
+
+            vp.addEventListener('touchmove', e => {
+                if(!Gestures.isDragging) return;
+                const x = e.touches[0].clientX;
+                const delta = x - Gestures.startX;
+                
+                // Resistance logic
+                const resistance = 0.5; 
+                const translate = -(STATE.screen * window.innerWidth) + (delta * resistance);
+                
+                vp.style.transform = `translateX(${translate}px)`;
+            }, {passive: true});
+
+            vp.addEventListener('touchend', e => {
+                Gestures.isDragging = false;
+                const endX = e.changedTouches[0].clientX;
+                const delta = endX - Gestures.startX;
+                const threshold = 80; // px to swipe
+                
+                if (delta < -threshold && STATE.screen < 2) {
+                    Navigation.go(STATE.screen + 1);
+                } else if (delta > threshold && STATE.screen > 0) {
+                    Navigation.go(STATE.screen - 1);
+                } else {
+                    Navigation.go(STATE.screen); // Revert
+                }
+            });
+        }
+    };
+
+    const Navigation = {
+        go: (index) => {
+            STATE.screen = index;
+            const vp = document.getElementById('view-viewport');
+            const screens = document.querySelectorAll('.screen');
+            const dots = document.querySelectorAll('.nav-dot');
+            
+            // 1. Move Viewport
+            vp.style.transition = 'transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)';
+            vp.style.transform = `translateX(-${index * 100}vw)`;
+            
+            // 2. Animate Screens (Depth effect)
+            screens.forEach((s, i) => {
+                if(i === index) {
+                    s.classList.add('active');
+                } else {
+                    s.classList.remove('active');
+                }
+            });
+
+            // 3. Update Dots
+            dots.forEach((d, i) => {
+                d.classList.toggle('active', i === index);
+            });
+            
+            // 4. Haptic
+            if(navigator.vibrate) navigator.vibrate(10);
+        }
+    };
+
+    // --- 5. CRYSTALLIZED (MEMORY VAULT) ---
+    const Crystal = {
+        get: () => {
+            try { return JSON.parse(localStorage.getItem(KEYS.CRYSTAL) || '[]'); }
+            catch { return []; }
+        },
+        add: () => {
+            const input = document.getElementById('crystal-input');
+            const txt = input.value.trim();
+            if(!txt) return;
+            
+            const docs = Crystal.get();
+            docs.unshift({ id: Date.now(), txt: txt, date: new Date().toLocaleDateString() });
+            localStorage.setItem(KEYS.CRYSTAL, JSON.stringify(docs));
+            
+            input.value = '';
+            Crystal.render();
+            Toast.show('Pensamento Cristalizado');
+            if(navigator.vibrate) navigator.vibrate([20, 50, 20]);
+        },
+        render: () => {
+            const docs = Crystal.get();
+            const el = document.getElementById('crystal-container');
+            
+            if(docs.length === 0) {
+                el.innerHTML = `
+                  <div class="text-center mt-20 opacity-30">
+                    <i data-lucide="hexagon" class="w-12 h-12 mx-auto mb-3"></i>
+                    <p class="text-xs uppercase tracking-widest">Vazio</p>
+                  </div>`;
+                lucide.createIcons();
+                return;
+            }
+            
+            el.innerHTML = docs.map(doc => `
+                <div class="glass-card p-4 border-l-2 border-amber-500/50">
+                    <p class="text-sm text-white/90 font-light italic">"${doc.txt}"</p>
+                    <div class="mt-2 text-[8px] text-white/30 uppercase tracking-widest flex justify-between">
+                        <span>${doc.date}</span>
+                        <button onclick="Crystal.del(${doc.id})" class="text-red-400 hover:text-red-300">Apagar</button>
+                    </div>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        },
+        del: (id) => {
+            if(!confirm('Quebrar cristal?')) return;
+            let docs = Crystal.get();
+            docs = docs.filter(d => d.id !== id);
+            localStorage.setItem(KEYS.CRYSTAL, JSON.stringify(docs));
+            Crystal.render();
+        }
+    };
+
+    // --- 6. DUALTUBE LOGIC ---
+    const DualTube = {
+        renderGrid: () => {
+            const grid = document.getElementById('video-grid');
+            grid.innerHTML = VIDEOS.map((v, i) => `
+                <div class="glass-card overflow-hidden group cursor-pointer" onclick="DualTube.play('${v.id}')">
+                    <div class="relative aspect-video bg-black">
+                         <img src="https://img.youtube.com/vi/${v.id}/mqdefault.jpg" class="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition duration-500">
+                         <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
+                            <div class="bg-cyan-500/20 p-2 rounded-full border border-cyan-500/50"><i data-lucide="play" class="w-4 h-4 text-cyan-400"></i></div>
+                         </div>
+                    </div>
+                    <div class="p-3">
+                         <div class="flex items-center gap-2">
+                            <span class="text-[8px] font-bold text-white/40 uppercase">0${i+1}</span>
+                            <span class="text-xs font-bold">${v.title}</span>
+                         </div>
+                    </div>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        },
+        play: (id) => {
+            const overlay = document.getElementById('video-overlay');
+            overlay.classList.remove('hidden');
+            setTimeout(() => overlay.classList.remove('opacity-0'), 10); // Fade in
+            document.getElementById('yt-frame').innerHTML = `<iframe width="100%" height="100%" src="https://www.youtube.com/embed/${id}?autoplay=1&rel=0&modestbranding=1" frameborder="0" allowfullscreen></iframe>`;
+        },
+        close: () => {
+            const overlay = document.getElementById('video-overlay');
+            overlay.classList.add('opacity-0');
+            setTimeout(() => {
+                overlay.classList.add('hidden');
+                document.getElementById('yt-frame').innerHTML = '';
+            }, 300);
+        }
+    };
+
+    // --- UTILS ---
+    const Toast = {
+        show: (msg) => {
+            const c = document.getElementById('di_toast_container');
+            const el = document.createElement('div');
+            el.className = "glass-pill bg-black/80 text-cyan-400 border-cyan-500/30 shadow-lg translate-x-10 opacity-0 transition duration-300";
+            el.innerHTML = msg;
+            c.appendChild(el);
+            
+            requestAnimationFrame(() => {
+                el.classList.remove('translate-x-10', 'opacity-0');
+            });
+
+            setTimeout(() => {
+                el.classList.add('translate-x-10', 'opacity-0');
+                setTimeout(() => el.remove(), 300);
+            }, 3000);
+        }
+    };
+
+    // Placeholder functions
+    function dose(type) { Toast.show(`Protocolo ${type.toUpperCase()} Iniciado`); if(navigator.vibrate) navigator.vibrate(50); }
+    function toggleAudio() { Toast.show("Audio Mudo (Demo)"); }
+    const Orb = { interact: () => { dose('Manual'); } };
+
+  </script>
+
+  <button id="miniKeysBtn" class="fixed z-[999] glass-pill !bg-black/90 !text-xs !py-2 hover:bg-white/10" title="Configurações">
+    CHAVES ▶
+  </button>
+
+  <div id="miniKeysModal" class="fixed inset-0 z-[9999] hidden items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+    <div class="w-full max-w-lg glass-card p-6 bg-[#0a0a0a] shadow-2xl animate-breathe">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-sm font-bold text-white uppercase tracking-widest">Configuração Neural</h3>
+            <button id="closeKeys" class="text-white/40 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+        </div>
+        
+        <div id="keysGrid" class="space-y-3 max-h-[60vh] overflow-y-auto mb-6 pr-2">
+            </div>
+
+        <div class="flex gap-2 justify-end pt-4 border-t border-white/10">
+            <button id="resetKeys" class="glass-pill !text-red-400 border-red-500/20">Reset</button>
+            <button id="saveKeys" class="glass-pill !bg-cyan-500/20 !text-cyan-400 !border-cyan-500/50">Salvar & Reiniciar</button>
+        </div>
+    </div>
+  </div>
+
+  <script>
+    // --- KEYS MANAGER LOGIC ---
+    (function(){
+      const KEYS_MAP = {
+        "Nome do Usuário": "di_userName",
+        "ID do Usuário": "di_userId",
+        "Chave API (LLM)": "di_apiKey",
+        "Assistente (nexus/kodux)": "di_assistantId"
+      };
+
+      const btn = document.getElementById('miniKeysBtn');
+      const modal = document.getElementById('miniKeysModal');
+      const grid = document.getElementById('keysGrid');
+      
+      btn.onclick = () => {
+          modal.classList.remove('hidden');
+          modal.classList.add('flex');
+          render();
+      };
+      
+      document.getElementById('closeKeys').onclick = () => modal.classList.add('hidden');
+      
+      function render() {
+          grid.innerHTML = '';
+          Object.entries(KEYS_MAP).forEach(([label, key]) => {
+              const val = localStorage.getItem(key) || '';
+              const el = document.createElement('div');
+              el.innerHTML = `
+                <div class="mb-1 text-[9px] text-white/40 uppercase font-bold">${label}</div>
+                <div class="flex gap-2">
+                    <input type="text" data-key="${key}" value="${val}" class="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:border-cyan-500/50 transition">
+                </div>
+              `;
+              grid.appendChild(el);
+          });
+      }
+
+      document.getElementById('saveKeys').onclick = () => {
+          const inputs = grid.querySelectorAll('input');
+          inputs.forEach(inp => {
+              if(inp.value) localStorage.setItem(inp.dataset.key, inp.value);
+              else localStorage.removeItem(inp.dataset.key);
+          });
+          location.reload();
+      };
+      
+      document.getElementById('resetKeys').onclick = () => {
+          if(confirm('Apagar todas as configurações?')) {
+              localStorage.clear();
+              location.reload();
+          }
+      };
+    })();
+  </script>
+</body>
+</html>
