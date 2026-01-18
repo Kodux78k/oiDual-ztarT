@@ -1,0 +1,18 @@
+{
+  "name": "DUAL // FUSION OS — HuD (Final Fluid)",
+  "short_name": "DUAL // starT",
+  "description": "",
+  "lang": "pt-BR",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#05070a",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "./icon-192.png",
+      "sizes": "any",
+      "type": "image/png"
+    }
+  ]
+}

@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" />
+  <title>Infodose x Kodux — Fusion OS v2</title>
+
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    :root {
+      --bg: #050505;
+      --glass: rgba(255, 255, 255, 0.03);
+      --glass-border: rgba(255, 255, 255, 0.08);
+      --accent-cyan: #7afff5;
+      --accent-purple: #a855f7;
+      --accent-blue: #3b82f6;
+      --accent-emerald: #10b981;
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
+    
+    body { 
+      background: var(--bg); 
+      color: #fff; 
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial;
+      overflow: hidden; 
+      height: 100vh;
+      user-select: none;
+    }
+
+    /* Scroll System */
+    .snap-container {
+      height: 100vh;
+      overflow-y: auto;
+      scroll-snap-type: y mandatory;
+      scroll-behavior: smooth;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    section.page {
+      height: 100vh;
+      scroll-snap-align: start;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      position: relative;
+    }
+
+    /* Glassmorphism */
+    .glass-card {
+      background: var(--glass);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-border);
+      border-radius: 28px;
+      transition: all 0.3s ease;
+    }
+    .glass-card:hover { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.15); }
+
+    .glass-pill {
+      background: rgba(255,255,255,0.05);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 20px;
+      padding: 8px 16px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .glass-pill:hover { background: rgba(255,255,255,0.1); }
+    .glass-pill.active { border-color: var(--accent-cyan); background: rgba(122, 255, 245, 0.1); color: var(--accent-cyan); }
+
+    /* Animations */
+    @keyframes spin-slow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    @keyframes pulse-slow { 0%, 100% { opacity: 0.6; transform: scale(1); } 50% { opacity: 0.3; transform: scale(1.05); } }
+    @keyframes breathe { 0%, 100% { opacity: 0.5; transform: scale(0.95); } 50% { opacity: 1; transform: scale(1.05); } }
+    
+    .animate-spin-slow { animation: spin-slow 16s linear infinite; }
+    .animate-pulse-slow { animation: pulse-slow 6s ease-in-out infinite; }
+    .animate-breathe { animation: breathe 4s ease-in-out infinite; }
+
+    /* Transitions & Views */
+    /* Agora o DualTube entra pela lateral (Slide) */
+    #dualtube-view {
+      position: fixed; inset: 0; z-index: 50;
+      background: var(--bg);
+      transform: translateX(100%); /* Start off-screen right */
+      opacity: 0;
+      transition: transform 0.5s cubic-bezier(0.19, 1, 0.22, 1), opacity 0.5s ease;
+      display: flex; flex-direction: column;
+      padding-top: 80px;
+    }
+    #dualtube-view.active { transform: translateX(0); opacity: 1; }
+
+    /* Memory Cortex Panel (Slide Up) */
+    #memory-cortex {
+      position: fixed; inset: 0; z-index: 70;
+      background: rgba(5,5,5,0.95);
+      backdrop-filter: blur(20px);
+      transform: translateY(100%);
+      transition: transform 0.4s cubic-bezier(0.19, 1, 0.22, 1);
+      display: flex; flex-direction: column;
+    }
+    #memory-cortex.active { transform: translateY(0); }
+
+    /* Video Player Overlay */
+    #player-overlay {
+      transition: backdrop-filter 0.5s ease, background 0.5s ease;
+    }
+    #player-overlay.active-flow {
+      background: rgba(0,0,0,0.9);
+      backdrop-filter: blur(30px);
+    }
+    
+    .video-card-active {
+        border-color: var(--accent-cyan);
+        box-shadow: 0 0 20px rgba(122, 255, 245, 0.1);
+    }
+
+    /* Pure Core Orb */
+    .pure-core {
+        background: radial-gradient(circle at center, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.4) 30%, transparent 70%);
+        box-shadow: 0 0 30px rgba(255,255,255,0.3);
+    }
+
+    /* Drag Cursor */
+    .cursor-grab { cursor: grab; }
+    .cursor-grabbing { cursor: grabbing; }
+
+    .scrollbar-hide::-webkit-scrollbar { display: none; }
+  </style>
+</head>
+<body>
+
+  <!-- BACKGROUND GLOWS -->
+  <div class="fixed inset-0 pointer-events-none z-0">
+    <div id="glow-1" class="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-blue-900/10 rounded-full blur-[120px] animate-pulse-slow"></div>
+    <div id="glow-2" class="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-cyan-900/10 rounded-full blur-[120px] animate-pulse-slow delay-1000"></div>
+  </div>
+
+  <!-- HEADER -->
+  <header class="fixed top-0 left-0 right-0 z-[60] px-6 py-4 flex justify-between items-center pointer-events-none">
+    
+    <!-- Left: Nexus Indicator -->
+    <div class="glass-pill flex items-center gap-3 pointer-events-auto active transition-transform hover:scale-105" onclick="switchView('nexus')" id="nav-nexus">
+      <div id="status-dot" class="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]"></div>
+      <span id="displayUser" class="text-[10px] font-bold tracking-[0.2em] uppercase">NEXUS</span>
+    </div>
+
+    <!-- Center: View Switcher (Desktop/Click alternative) -->
+    <div class="pointer-events-auto flex gap-2">
+       <button class="glass-pill flex items-center gap-2 transition-transform hover:scale-105" onclick="switchView('dualtube')" id="nav-dualtube">
+         <i data-lucide="play-circle" class="w-3 h-3"></i>
+         <span class="text-[10px] font-bold uppercase tracking-widest hidden md:inline">DualTube</span>
+       </button>
+    </div>
+    
+    <!-- Right: Memory/Upload -->
+    <div class="flex gap-2 pointer-events-auto">
+        <div class="glass-pill flex items-center gap-2" onclick="toggleMemoryCortex()" title="Visualizar Memória">
+           <i data-lucide="brain-circuit" class="w-3 text-cyan-400"></i>
+           <span class="text-[10px] font-bold text-cyan-400 tracking-widest">CÓRTEX</span>
+        </div>
+        <div class="glass-pill flex items-center gap-2" onclick="document.getElementById('di_import_file').click()" title="Importar">
+           <i data-lucide="upload-cloud" class="w-3 text-white/40"></i>
+        </div>
+    </div>
+  </header>
+
+  <!-- VIEW 1: NEXUS -->
+  <main class="snap-container relative z-10 transition-all duration-500" id="snapRoot">
+    
+    <!-- PAGE 1: ORB INTERFACE -->
+    <section class="page">
+      <div class="relative z-10 text-center mb-12 select-none">
+        <h1 id="hero-title" class="text-5xl font-bold tracking-tighter mb-2 bg-clip-text text-transparent bg-gradient-to-b from-white to-white/40">Infodose</h1>
+        <p id="hero-subtitle" class="text-[10px] uppercase tracking-[0.4em] text-white/30 font-light">SYSTEM READY</p>
+      </div>
+
+      <!-- ORB DRAGGABLE CONTAINER -->
+      <div id="orbClickable" class="relative group cursor-grab touch-none" 
+           onmousedown="startDrag(event)" ontouchstart="startDrag(event)"
+           onmouseup="endDrag()" ontouchend="endDrag()"
+           onmousemove="drag(event)" ontouchmove="drag(event)">
+           
+        <div id="orbContainer" class="relative w-72 h-72 transition-transform duration-100 ease-out">
+          <!-- Rings -->
+          <div class="absolute inset-0 border border-white/5 rounded-full animate-spin-slow"></div>
+          <div class="absolute inset-4 border border-white/10 rounded-full animate-spin-slow" style="animation-direction: reverse;"></div>
+          
+          <!-- Outer Glow -->
+          <div id="coreGlow" class="absolute inset-0 rounded-full blur-[60px] opacity-40 bg-cyan-500/20 transition-colors duration-1000"></div>
+          
+          <!-- Physical Orb -->
+          <div id="orbPhysical" class="absolute inset-8 rounded-full border border-white/20 bg-gradient-to-br from-white/10 to-transparent backdrop-blur-md flex items-center justify-center overflow-hidden shadow-[inset_0_0_20px_rgba(255,255,255,0.05)]">
+             <div class="w-24 h-24 rounded-full pure-core animate-breathe blur-md"></div>
+             <div class="absolute w-12 h-12 rounded-full bg-white blur-sm animate-pulse-slow"></div>
+          </div>
+          
+          <!-- Drag Hint -->
+          <div class="absolute right-0 top-1/2 -translate-y-1/2 translate-x-12 opacity-0 group-hover:opacity-100 transition-opacity duration-500 hidden md:flex flex-col items-center">
+             <i data-lucide="arrow-right" class="text-white/20 animate-pulse mb-1"></i>
+             <span class="text-[8px] uppercase tracking-widest text-white/20 rotate-90">Arraste</span>
+          </div>
+        </div>
+        
+        <div class="absolute -bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none">
+            <span id="training-indicator" class="text-[9px] font-mono tracking-[0.3em] uppercase text-white/20">Memória: Vazia</span>
+            <div class="h-px w-24 bg-gradient-to-r from-transparent via-cyan-500/40 to-transparent mt-2"></div>
+        </div>
+      </div>
+
+      <div class="absolute bottom-10 animate-bounce text-white/20 cursor-pointer" onclick="scrollToNext()">
+        <i data-lucide="chevron-down"></i>
+      </div>
+    </section>
+
+    <!-- PAGE 2: PROTOCOLS -->
+    <section class="page">
+      <div class="w-full max-w-sm space-y-6">
+        <div class="text-center mb-8">
+          <h2 class="text-xl font-bold">Bio-Protocolos</h2>
+          <p class="text-[10px] uppercase tracking-widest text-white/20">Indução de Frequência Neural</p>
+        </div>
+
+        <div class="grid grid-cols-1 gap-4">
+          <button onclick="dose('Foco Máximo','gamma','#3b82f6')" class="glass-card p-5 flex items-center gap-5 group hover:bg-white/5 transition-all active:scale-95">
+            <div class="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <i data-lucide="zap" class="text-blue-400 w-6"></i>
+            </div>
+            <div class="text-left">
+              <h3 class="font-bold text-sm text-blue-100">Foco Máximo</h3>
+              <p class="text-[10px] text-white/40 uppercase tracking-tighter">Gamma • 40Hz</p>
+            </div>
+          </button>
+
+          <button onclick="dose('Estado de Fluxo','alpha','#a855f7')" class="glass-card p-5 flex items-center gap-5 group hover:bg-white/5 transition-all active:scale-95">
+            <div class="w-12 h-12 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <i data-lucide="sparkles" class="text-purple-400 w-6"></i>
+            </div>
+            <div class="text-left">
+              <h3 class="font-bold text-sm text-purple-100">Estado de Fluxo</h3>
+              <p class="text-[10px] text-white/40 uppercase tracking-tighter">Alpha • 10Hz</p>
+            </div>
+          </button>
+
+          <button onclick="dose('Clareza Profunda','theta','#10b981')" class="glass-card p-5 flex items-center gap-5 group hover:bg-white/5 transition-all active:scale-95">
+            <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <i data-lucide="wind" class="text-emerald-400 w-6"></i>
+            </div>
+            <div class="text-left">
+              <h3 class="font-bold text-sm text-emerald-100">Clareza Profunda</h3>
+              <p class="text-[10px] text-white/40 uppercase tracking-tighter">Theta • 6Hz</p>
+            </div>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- PAGE 3: DATA OPS -->
+    <section class="page">
+      <div class="w-full max-w-sm space-y-6">
+        <div class="glass-card p-6 w-full text-center">
+            <h3 class="text-xs font-bold uppercase tracking-widest text-white/60 mb-2">Estado do Sistema</h3>
+            <div class="flex justify-center gap-4 text-[10px] text-white/30">
+                <span id="log-count">0 Eventos</span>
+                <span>•</span>
+                <span id="memory-size">0 KB Memória</span>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+            <button onclick="exportData()" class="glass-pill w-full text-[10px] font-bold uppercase tracking-widest text-white/60 hover:text-white text-center py-4">
+              Backup JSON
+            </button>
+            <button onclick="clearData()" class="glass-pill w-full text-[10px] font-bold uppercase tracking-widest text-red-400/50 hover:text-red-400 text-center py-4">
+              Reset Total
+            </button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- VIEW 2: DUALTUBE (Side Panel) -->
+  <div id="dualtube-view">
+     <div class="flex-1 flex overflow-hidden">
+        
+        <!-- Sidebar (Playlists) -->
+        <aside class="w-64 border-r border-white/5 hidden md:flex flex-col p-6 gap-2 bg-white/[0.01]">
+           <div class="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em] mb-4">Biblioteca</div>
+           <div id="playlist-container" class="space-y-2"></div>
+           
+           <div class="mt-auto p-4 rounded-xl border border-dashed border-white/10 text-center">
+             <p class="text-[9px] text-white/30 uppercase tracking-widest">Arraste para voltar</p>
+           </div>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="flex-1 overflow-y-auto p-4 md:p-8 relative" id="dt-scroll">
+            <!-- Back Gesture Hint (Mobile) -->
+            <div class="md:hidden absolute left-0 top-1/2 -translate-y-1/2 w-4 h-24 bg-white/5 rounded-r-xl flex items-center justify-center opacity-50" onclick="switchView('nexus')">
+                <i data-lucide="chevron-left" class="w-3 h-3 text-white/50"></i>
+            </div>
+
+            <!-- Header -->
+            <div class="flex justify-between items-end mb-8 pl-6 md:pl-0">
+                <div>
+                    <h2 class="text-2xl font-bold text-white mb-1">Fluxo Visual</h2>
+                    <p class="text-[10px] text-cyan-400 uppercase tracking-widest">Sincronização Audiovisual Ativa</p>
+                </div>
+                <div class="flex gap-2">
+                     <!-- Filter tags could go here -->
+                </div>
+            </div>
+
+            <!-- Video Grid -->
+            <div id="video-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-20">
+               <!-- JS Injected -->
+            </div>
+
+            <!-- Player Overlay -->
+            <div id="player-overlay" class="fixed inset-0 bg-black/95 z-50 hidden flex-col p-4 md:p-8 overflow-y-auto">
+                <div class="flex justify-between items-center mb-6">
+                    <div class="flex items-center gap-3">
+                         <div class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
+                         <span class="text-xs font-bold tracking-widest text-white/50">TRANSMISSÃO AO VIVO</span>
+                    </div>
+                    <button onclick="closePlayer()" class="glass-pill text-xs hover:bg-white/10">FECHAR</button>
+                </div>
+                
+                <div class="flex-1 flex flex-col lg:flex-row gap-8 max-w-7xl mx-auto w-full">
+                    <!-- Video Frame -->
+                    <div class="flex-[2] bg-black rounded-3xl overflow-hidden border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)] relative min-h-[300px] md:min-h-[500px]">
+                        <div id="yt-embed" class="w-full h-full absolute inset-0"></div>
+                    </div>
+                    
+                    <!-- Insight Panel -->
+                    <div class="flex-1 flex flex-col gap-4 max-w-md">
+                        <div class="glass-card p-6 flex-1 flex flex-col border border-white/10">
+                            <h3 class="text-xs font-bold text-cyan-400 uppercase tracking-widest mb-2">Canal de Insight</h3>
+                            <p class="text-[11px] text-white/50 mb-6 leading-relaxed">
+                                Enquanto o fluxo visual processa, capture seus pensamentos. Cada entrada refina sua memória digital.
+                            </p>
+                            
+                            <textarea id="insight-input" class="flex-1 bg-black/20 border border-white/10 rounded-xl p-4 text-sm text-white placeholder-white/20 resize-none focus:border-cyan-500/50 transition-colors focus:bg-black/40" placeholder="O que você absorveu?"></textarea>
+                            
+                            <button onclick="saveInsight()" class="mt-4 glass-pill w-full text-center py-3 text-xs font-bold bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 border-cyan-500/20">
+                                SINTETIZAR & SALVAR
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+     </div>
+  </div>
+
+  <!-- MEMORY CORTEX PANEL (New Feature) -->
+  <div id="memory-cortex">
+      <div class="p-6 border-b border-white/10 flex justify-between items-center bg-black/40">
+          <div class="flex items-center gap-3">
+              <i data-lucide="brain-circuit" class="text-cyan-400 w-5 h-5"></i>
+              <h2 class="text-sm font-bold uppercase tracking-[0.2em]">Córtex de Memória</h2>
+          </div>
+          <button onclick="toggleMemoryCortex()" class="glass-pill hover:bg-white/10">Fechar</button>
+      </div>
+      
+      <div class="flex-1 overflow-y-auto p-6 md:p-12 bg-gradient-to-b from-black/50 to-black/80">
+          <div id="memory-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-w-6xl mx-auto">
+              <!-- Memories Injected Here -->
+          </div>
+          <div id="empty-memory-msg" class="hidden flex-col items-center justify-center h-full text-white/20">
+              <i data-lucide="hard-drive" class="w-12 h-12 mb-4 opacity-50"></i>
+              <p class="text-xs uppercase tracking-widest">Nenhum dado consolidado</p>
+          </div>
+      </div>
+  </div>
+
+  <!-- ACTIVE DOSE OVERLAY -->
+  <div id="active-ui">
+    <div id="session-bg" class="absolute inset-0 opacity-30 transition-colors duration-1000"></div>
+    
+    <div class="relative z-10 text-center px-8 w-full max-w-md">
+      <div id="session-orb" class="w-48 h-48 mx-auto mb-12 relative">
+         <div class="absolute inset-0 border-2 border-white/10 rounded-full animate-ping opacity-20"></div>
+         <div class="absolute inset-0 border border-white/5 rounded-full animate-spin-slow"></div>
+         <div id="session-orb-core" class="absolute inset-4 rounded-full border border-white/20 flex items-center justify-center backdrop-blur-sm transition-colors duration-1000">
+             <div class="w-16 h-16 bg-white blur-xl rounded-full opacity-50 animate-pulse"></div>
+         </div>
+      </div>
+      
+      <h2 id="session-status" class="text-[10px] font-bold uppercase tracking-[0.6em] text-cyan-400 mb-6 animate-pulse">Sintonizando...</h2>
+      <div class="min-h-[120px] mb-12 flex items-center justify-center">
+        <p id="ai-text" class="text-xl md:text-2xl font-light italic leading-relaxed text-white/90 drop-shadow-lg"></p>
+      </div>
+      <button onclick="terminate()" class="glass-pill px-12 py-4 text-[10px] font-bold uppercase tracking-[0.4em] text-red-400 border border-red-500/20 hover:bg-red-500/10">
+        Encerrar
+      </button>
+    </div>
+  </div>
+
+  <!-- HIDDEN UTILS -->
+  <input id="di_import_file" type="file" accept=".txt,.json" class="hidden" />
+  <div id="di_toast" class="fixed bottom-10 left-1/2 -translate-x-1/2 z-[200] pointer-events-none flex flex-col gap-2"></div>
+
+  <script>
+    // --- 1. CORE & CONFIG ---
+    const DI_CONV_KEY = 'di_conversation';
+    const DI_TRAIN_KEY = 'di_trainingText';
+    let conversation = [];
+    let audioCtx = null, osc = null, gainNode = null;
+    let doseActive = false;
+    let currentVideoId = null;
+    let currentPlaylistName = 'Essenciais';
+
+    const CONFIG = {
+      apiKey: localStorage.getItem('di_apiKey') || '',
+      trainingName: localStorage.getItem('di_trainingFileName') || ''
+    };
+
+    const PLAYLISTS = {
+      "Essenciais": ["qldgs0aLdB0", "Bt_rLbMjJDk", "Id2NI9tv1r4"],
+      "Criatividade": ["FbutKMpd8MY", "1L9_rFmIGJ8", "qldgs0aLdB0"],
+      "Imersão Deep": ["hfQ1L6fCfAo", "Tq99vQNQ6dQ", "DTDfkHwuMic"]
+    };
+
+    const PROTOCOL_MAP = {
+      "Essenciais": { name: "Foco Automático", type: "gamma", color: "#3b82f6" },
+      "Criatividade": { name: "Fluxo Criativo", type: "alpha", color: "#a855f7" },
+      "Imersão Deep": { name: "Onda Theta", type: "theta", color: "#10b981" }
+    };
+
+    // --- 2. INIT & DRAG LOGIC ---
+    window.onload = () => {
+      lucide.createIcons();
+      loadMemory();
+      renderPlaylists();
+      updateStatusUI();
+    };
+
+    // Drag System
+    let dragStartX = 0;
+    let isDragging = false;
+    const orbEl = document.getElementById('orbClickable');
+    const orbContainer = document.getElementById('orbContainer');
+
+    function startDrag(e) {
+        isDragging = true;
+        dragStartX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+        orbEl.classList.add('cursor-grabbing');
+        orbEl.classList.remove('cursor-grab');
+    }
+
+    function drag(e) {
+        if (!isDragging) return;
+        const currentX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+        const diff = currentX - dragStartX;
+        
+        // Limit drag visually
+        if(diff < 0) { // Dragging left
+            orbContainer.style.transform = `translateX(${diff/2}px) rotate(${diff/10}deg)`;
+        }
+    }
+
+    function endDrag() {
+        if (!isDragging) return;
+        isDragging = false;
+        orbEl.classList.remove('cursor-grabbing');
+        orbEl.classList.add('cursor-grab');
+        
+        // Check if dragged enough to switch
+        const style = window.getComputedStyle(orbContainer);
+        const matrix = new WebKitCSSMatrix(style.transform);
+        const translateX = matrix.m41;
+
+        if (translateX < -80) { // Threshold reached
+            switchView('dualtube');
+        }
+        
+        // Reset Visuals
+        orbContainer.style.transform = 'translateX(0) rotate(0)';
+    }
+
+    // View Switching
+    function switchView(view) {
+      const vNexus = document.getElementById('nav-nexus');
+      const vDual = document.getElementById('nav-dualtube');
+      const vTube = document.getElementById('dualtube-view');
+      const snapRoot = document.getElementById('snapRoot');
+
+      if (view === 'nexus') {
+        vNexus.classList.add('active');
+        vDual.classList.remove('active');
+        vTube.classList.remove('active');
+        snapRoot.style.transform = 'scale(1)';
+        snapRoot.style.filter = 'blur(0)';
+        snapRoot.style.opacity = '1';
+      } else {
+        vDual.classList.add('active');
+        vNexus.classList.remove('active');
+        vTube.classList.add('active');
+        snapRoot.style.transform = 'scale(0.9) translateX(-50px)';
+        snapRoot.style.filter = 'blur(10px)';
+        snapRoot.style.opacity = '0.5';
+        loadGrid(currentPlaylistName);
+      }
+    }
+
+    // --- 3. MEMORY CORTEX (New) ---
+    function toggleMemoryCortex() {
+        const p = document.getElementById('memory-cortex');
+        p.classList.toggle('active');
+        if(p.classList.contains('active')) renderMemoryGrid();
+    }
+
+    function renderMemoryGrid() {
+        const raw = localStorage.getItem(DI_TRAIN_KEY) || "";
+        const grid = document.getElementById('memory-grid');
+        const empty = document.getElementById('empty-memory-msg');
+        
+        if(!raw.trim()) {
+            grid.innerHTML = '';
+            empty.classList.replace('hidden','flex');
+            return;
+        }
+        
+        empty.classList.replace('flex','hidden');
+        
+        // Parse simple text format: [Date] INSIGHT (ID): text
+        // Split by bracket [ to find entries
+        const entries = raw.split('[').filter(e => e.trim().length > 0).reverse();
+        
+        grid.innerHTML = entries.map(entry => {
+            const dateEnd = entry.indexOf(']');
+            const date = entry.substring(0, dateEnd);
+            const contentPart = entry.substring(dateEnd + 1).trim();
+            
+            // Extract type/id if present "INSIGHT (xyz):"
+            let type = "MEMÓRIA";
+            let text = contentPart;
+            
+            if(contentPart.includes(':')) {
+                const split = contentPart.split(':');
+                type = split[0].trim();
+                text = split.slice(1).join(':').trim();
+            }
+
+            return `
+            <div class="glass-card p-5 border-l-4 border-cyan-500/30 hover:border-cyan-400 transition-colors">
+                <div class="flex justify-between items-center mb-3">
+                    <span class="text-[9px] font-bold text-cyan-400 uppercase tracking-widest">${type}</span>
+                    <span class="text-[9px] text-white/30">${date}</span>
+                </div>
+                <p class="text-sm text-white/80 leading-relaxed font-light">"${text}"</p>
+            </div>
+            `;
+        }).join('');
+    }
+
+    // --- 4. DATA LOGIC ---
+    function updateStatusUI() {
+        const storedName = localStorage.getItem('di_trainingFileName');
+        const raw = localStorage.getItem(DI_TRAIN_KEY) || "";
+        
+        if(storedName) {
+            document.getElementById('training-indicator').innerText = `MEMÓRIA: ${storedName}`;
+            document.getElementById('training-indicator').classList.add('text-emerald-400');
+        }
+        
+        document.getElementById('log-count').innerText = `${conversation.length} Eventos`;
+        document.getElementById('memory-size').innerText = `${(raw.length/1024).toFixed(1)} KB Dados`;
+    }
+
+    function loadMemory() {
+      const saved = localStorage.getItem(DI_CONV_KEY);
+      if(saved) conversation = JSON.parse(saved);
+    }
+
+    function logEvent(type, content, extra = {}) {
+      const entry = { type, content, ts: Date.now(), ...extra };
+      conversation.push(entry);
+      localStorage.setItem(DI_CONV_KEY, JSON.stringify(conversation));
+      updateStatusUI();
+    }
+
+    function addToTraining(text) {
+        let currentTraining = localStorage.getItem(DI_TRAIN_KEY) || "";
+        const timestamp = new Date().toLocaleString('pt-BR');
+        const newEntry = `\n[${timestamp}] INSIGHT (${currentVideoId || 'Geral'}): ${text}`;
+        
+        currentTraining += newEntry;
+        localStorage.setItem(DI_TRAIN_KEY, currentTraining);
+        if(!localStorage.getItem('di_trainingFileName')) localStorage.setItem('di_trainingFileName', 'user_insights.txt');
+        
+        updateStatusUI();
+        logEvent('TREINO', 'Insight consolidado.');
+    }
+
+    // Import/Export
+    document.getElementById('di_import_file').onchange = async (e) => {
+      const file = e.target.files[0];
+      if(!file) return;
+      try {
+        const text = await file.text();
+        if(file.name.endsWith('.json')) {
+            conversation = JSON.parse(text);
+            localStorage.setItem(DI_CONV_KEY, text);
+            toast('Logs Restaurados');
+        } else {
+            localStorage.setItem(DI_TRAIN_KEY, text);
+            localStorage.setItem('di_trainingFileName', file.name);
+            logEvent('UPLOAD', `Importou: ${file.name}`);
+            toast('Memória Expandida');
+        }
+        updateStatusUI();
+      } catch(e) { toast('Erro no arquivo'); }
+    };
+
+    function exportData() {
+        const data = { logs: conversation, training: localStorage.getItem(DI_TRAIN_KEY) };
+        const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob); a.download = `fusion_full_${Date.now()}.json`;
+        a.click();
+        toast('Backup Completo');
+    }
+
+    function clearData() {
+        if(confirm("Apagar tudo?")) { localStorage.clear(); location.reload(); }
+    }
+
+    // --- 5. AUDIO & DOSE ---
+    function checkConfig() {
+        if(!CONFIG.apiKey) {
+            const k = prompt("API Key (OpenRouter/OpenAI):");
+            if(k) { localStorage.setItem('di_apiKey', k); CONFIG.apiKey = k; toast("Chave Salva"); }
+        } else {
+            // Se clicar sem arrastar, avisa
+            toast("Arraste para o lado ou escolha um protocolo");
+        }
+    }
+
+    async function dose(stateName, type, color, backgroundMode = false) {
+      doseActive = true;
+      const textDisplay = document.getElementById('ai-text');
+      
+      if(!backgroundMode) {
+          document.getElementById('active-ui').classList.add('visible');
+          document.getElementById('session-status').innerText = `Sincronizando ${type.toUpperCase()}...`;
+          document.getElementById('session-status').style.color = color;
+          document.getElementById('session-bg').style.background = `radial-gradient(circle at center, ${color}33 0%, transparent 70%)`;
+          textDisplay.innerText = "";
+      } else {
+          toast(`Auto-Dose: ${stateName}`);
+      }
+
+      startAudio(type);
+
+      if(CONFIG.apiKey && !backgroundMode) {
+          let aiText = `Respire... sintonize em ${stateName}.`;
+          try {
+            const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                method:'POST',
+                headers: { 'Authorization': `Bearer ${CONFIG.apiKey}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model: 'allenai/molmo-2-8b:free',
+                    messages: [{role:'system', content:`Frase hipnótica curta em PT-BR para: ${stateName}.`}]
+                })
+            });
+            const data = await res.json();
+            if(data.choices) aiText = data.choices[0].message.content.replace(/"/g, '');
+          } catch(e) {}
+
+          let i=0;
+          const typeW = () => {
+              if(!doseActive) return;
+              if(i < aiText.length) {
+                  textDisplay.innerText += aiText.charAt(i++);
+                  setTimeout(typeW, 40);
+              } else {
+                  logEvent('DOSE', aiText, { state: stateName });
+                  document.getElementById('session-status').innerText = "Estável";
+              }
+          };
+          setTimeout(typeW, 1000);
+      }
+    }
+
+    function startAudio(type) {
+        if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if(osc) stopAudio();
+        osc = audioCtx.createOscillator();
+        gainNode = audioCtx.createGain();
+        
+        const freqMap = { 'gamma': 40, 'alpha': 10, 'theta': 6 };
+        const beat = freqMap[type.toLowerCase()] || 10;
+        
+        osc.frequency.value = 200; 
+        const lfo = audioCtx.createOscillator();
+        lfo.frequency.value = beat;
+        const lfoGain = audioCtx.createGain();
+        lfoGain.gain.value = 500;
+        lfo.connect(lfoGain);
+        lfoGain.connect(gainNode.gain);
+        
+        gainNode.gain.value = 0.05;
+        osc.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        osc.start(); lfo.start();
+        osc.lfo = lfo;
+    }
+
+    function stopAudio() {
+        if(osc) { try { osc.stop(); osc.lfo.stop(); } catch(e){} osc = null; }
+    }
+    
+    function terminate() {
+        doseActive = false; stopAudio();
+        document.getElementById('active-ui').classList.remove('visible');
+    }
+
+    // --- 6. DUALTUBE UI ---
+    function renderPlaylists() {
+        const c = document.getElementById('playlist-container');
+        c.innerHTML = '';
+        Object.keys(PLAYLISTS).forEach(name => {
+            const btn = document.createElement('button');
+            const isActive = name === currentPlaylistName ? 'bg-white/10 text-white font-bold' : 'text-white/50 hover:bg-white/5';
+            btn.className = `w-full text-left text-xs py-3 px-4 rounded-lg transition-all ${isActive}`;
+            btn.innerHTML = `<span class="opacity-50 mr-2">#</span> ${name}`;
+            btn.onclick = () => {
+                currentPlaylistName = name;
+                renderPlaylists();
+                loadGrid(name);
+            };
+            c.appendChild(btn);
+        });
+    }
+
+    function loadGrid(name) {
+        const grid = document.getElementById('video-grid');
+        grid.innerHTML = '';
+        PLAYLISTS[name].forEach((id, index) => {
+            const el = document.createElement('div');
+            el.className = "glass-card overflow-hidden group cursor-pointer hover:-translate-y-1 transition-transform duration-300";
+            el.onclick = () => openPlayer(id);
+            el.innerHTML = `
+                <div class="aspect-video bg-black relative">
+                    <img src="https://img.youtube.com/vi/${id}/mqdefault.jpg" class="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition duration-500">
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
+                    <div class="absolute bottom-3 left-3 flex items-center gap-2">
+                        <div class="w-6 h-6 rounded-full bg-cyan-500/20 backdrop-blur-sm flex items-center justify-center border border-cyan-500/50">
+                             <i data-lucide="play" class="w-3 h-3 text-cyan-400 ml-0.5"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="p-4">
+                    <div class="text-[9px] text-cyan-500 font-mono uppercase tracking-widest mb-1">Módulo ${index + 1}</div>
+                    <div class="text-xs text-white/90 font-bold">Protocolo Visual #${id.substring(0,4)}</div>
+                </div>
+            `;
+            grid.appendChild(el);
+        });
+        lucide.createIcons();
+    }
+
+    function openPlayer(id) {
+        currentVideoId = id;
+        const ov = document.getElementById('player-overlay');
+        ov.classList.remove('hidden'); ov.classList.add('flex', 'active-flow');
+        
+        const proto = PROTOCOL_MAP[currentPlaylistName];
+        if(proto) dose(proto.name, proto.type, proto.color, true);
+
+        document.getElementById('yt-embed').innerHTML = `<iframe width="100%" height="100%" src="https://www.youtube.com/embed/${id}?autoplay=1&rel=0&modestbranding=1" frameborder="0" allowfullscreen></iframe>`;
+        logEvent('VIDEO', `Play: ${id}`);
+    }
+
+    function closePlayer() {
+        document.getElementById('player-overlay').classList.add('hidden');
+        document.getElementById('player-overlay').classList.remove('flex', 'active-flow');
+        document.getElementById('yt-embed').innerHTML = '';
+        currentVideoId = null;
+        stopAudio();
+    }
+
+    function saveInsight() {
+        const input = document.getElementById('insight-input');
+        const txt = input.value.trim();
+        if(!txt) return;
+        addToTraining(txt);
+        input.value = '';
+        toast('Insight Ancorado');
+    }
+
+    function toast(msg) {
+        const t = document.getElementById('di_toast');
+        const el = document.createElement('div');
+        el.className = "glass-pill text-[10px] font-bold uppercase tracking-widest text-cyan-400 border border-cyan-500/20 shadow-[0_0_15px_rgba(0,242,255,0.1)] bg-black/90";
+        el.innerText = msg;
+        t.appendChild(el);
+        setTimeout(()=>el.remove(), 3000);
+    }
+
+    function scrollToNext() { document.getElementById('snapRoot').scrollTo({ top: window.innerHeight, behavior: 'smooth' }); }
+  </script>
+</body>
+</html>
+
+

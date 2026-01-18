@@ -1,0 +1,2093 @@
+<html lang="pt-BR"><head>
+  <meta charset="utf-8">
+  <title>DUAL // FUSION OS — V7 (Final Fluid)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+  <link rel="manifest" href="./manifest.json">
+  <meta name="theme-color" content="#05070a">
+  <link rel="apple-touch-icon" href="./icon-192.png">
+
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@200;400;600;900&amp;family=JetBrains+Mono:wght@400;700&amp;display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
+
+  <style>
+    :root{
+      --bg-deep:#030406; --glass-surface:rgba(18,18,22,0.65); --glass-border:rgba(255,255,255,0.06);
+      --neon-cyan:#00f2ff; --neon-purple:#bd00ff; --neon-gold:#ffd700; --neon-danger:#ff2a6d; --neon-success:#00ff9d;
+      --font-ui:'Montserrat',sans-serif; --font-code:'JetBrains Mono',monospace;
+      --ease-overshoot: cubic-bezier(0.34, 1.3, 0.64, 1);
+      --ease-smooth: cubic-bezier(0.23, 1, 0.32, 1);
+    }
+    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;outline:none;user-select:none}
+    .activation-pre, .cyber-input, input, textarea, .toaster, .response-block p { user-select:text !important; -webkit-user-select:text !important; }
+
+    body{margin:0;padding:0;min-height:100vh;background-color:var(--bg-deep);color:#fff;
+      font-family:var(--font-ui);overflow:hidden;
+      background-image:linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+      background-size:52px 52px; /* Ajuste sutil para evitar cortes visuais nas bordas */
+      background-position: center;
+    }
+
+    /* Ambient Light */
+    .ambient-light{position:fixed;inset:0;z-index:0;pointer-events:none}
+    .blob{position:absolute;border-radius:50%;filter:blur(100px);opacity:0.14;animation:float 25s infinite alternate ease-in-out}
+    .blob-1{width:60vw;height:60vw;background:var(--neon-cyan);top:-20%;left:-20%}
+    .blob-2{width:50vw;height:50vw;background:var(--neon-purple);bottom:-20%;right:-20%;animation-delay:-5s}
+    @keyframes float{0%{transform:translate(0,0)}100%{transform:translate(40px,60px)}}
+
+    /* --- CINEMATIC SNAP ZONE --- */
+    #snap-zone {
+        position: fixed; top: 0; left: 0; right: 0; height: 80px;
+        background: linear-gradient(to bottom, rgba(0, 242, 255, 0.25), transparent);
+        opacity: 0; pointer-events: none; transition: opacity 0.3s ease; z-index: 9000;
+        box-shadow: 0 0 40px rgba(0, 242, 255, 0.1);
+    }
+    #snap-zone.active { opacity: 1; }
+
+    /* Container Central */
+    .container{
+      position: absolute; inset:0; pointer-events:none;
+      display:flex; align-items:center; justify-content:center; perspective:1200px; z-index:10;
+    }
+
+    /* O Card Principal */
+    .fusion-card{
+      pointer-events:auto;
+      width:100%; max-width:440px;
+      /* Max height limitation allows scrolling if content expands too much */
+      max-height: 85vh; overflow-y: auto; overflow-x: hidden;
+      background:var(--glass-surface); backdrop-filter:blur(30px); -webkit-backdrop-filter:blur(30px);
+      border:1px solid var(--glass-border); border-radius:36px; padding:30px 25px;
+      box-shadow:0 40px 100px rgba(0,0,0,0.8);
+      position:relative; opacity:0; transform:translateY(50px) scale(0.96);
+      display:flex; flex-direction:column; gap:8px;
+      transition: width 0.5s var(--ease-smooth), height 0.5s var(--ease-smooth), border-radius 0.5s var(--ease-smooth), opacity 0.4s, left 0.4s var(--ease-smooth), top 0.4s var(--ease-smooth), box-shadow 0.4s;
+      will-change: transform, width, height, border-radius, left, top;
+      
+      /* Permite scroll vertical (pan-y) mas bloqueia horizontal e zoom */
+      touch-action: pan-y;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+      
+      scrollbar-width: none; /* Hide scrollbar Firefox */
+    }
+    .fusion-card::-webkit-scrollbar { display: none; } /* Hide scrollbar Chrome/Safari */
+    .fusion-card.active{opacity:1;transform:translateY(0) scale(1);}
+
+    /* Estado CLOSED */
+    .fusion-card.closed{width:260px; padding:14px 16px; border-radius:22px;} 
+    .fusion-card.closed .card-body{display:none}
+
+    /* ESTADO: ORB */
+    .fusion-card.orb {
+      position: fixed !important;
+      width: 68px !important; height: 68px !important;
+      padding: 0 !important; border-radius: 50% !important;
+      align-items: center; justify-content: center;
+      box-shadow: 0 15px 40px rgba(0,0,0,0.6), 0 0 20px rgba(0,242,255,0.2);
+      z-index: 9999;
+      cursor: grab;
+      touch-action: none; /* No orb, bloqueia tudo para arrastar livremente */
+      overflow: visible; 
+    }
+    .fusion-card.orb:active { cursor: grabbing; transform: scale(0.95); }
+    .fusion-card.orb .text-block, .fusion-card.orb .clock-widget, .fusion-card.orb .card-body, .fusion-card.orb .small-preview { display: none !important; }
+    .fusion-card.orb .card-header { margin: 0; width: 100%; height: 100%; justify-content: center; padding:0; }
+    .fusion-card.orb .avatar-slot { width: 54px; height: 54px; border-radius: 50%; margin:0; opacity: 1; pointer-events: none; }
+    
+    /* Orb Quick Menu Trigger */
+    .orb-menu-trigger {
+        position: absolute; bottom: -30px; left: 50%; transform: translateX(-50%);
+        width: 24px; height: 24px; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2);
+        border-radius: 50%; display: none; align-items: center; justify-content: center; cursor: pointer;
+        color: #fff; font-size: 12px; pointer-events: auto; backdrop-filter: blur(4px);
+    }
+    .fusion-card.orb:hover .orb-menu-trigger { display: flex; }
+
+    /* ESTADO: HUD */
+    .fusion-card.hud {
+      position: fixed !important; top: 0 !important; left: 50% !important;
+      transform: translateX(-50%) !important; 
+      width: 96% !important; max-width: 600px !important; height: 64px !important;
+      padding: 0 16px !important; border-radius: 0 0 24px 24px !important;
+      flex-direction: row; align-items: center; justify-content: space-between;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.7); z-index: 9999;
+      overflow: visible;
+      border-top: none;
+      opacity: 0.78;
+      touch-action: none; /* Bloqueia scroll para gestos de puxar */
+    }
+    .fusion-card.hud .card-body, .fusion-card.hud .small-preview { display: none !important; }
+    .fusion-card.hud .card-header { margin: 0; width: 100%; justify-content: space-between; }
+    .fusion-card.hud .avatar-slot { width: 40px; height: 40px; }
+    .fusion-card.hud .brand-dual { font-size: 1.2rem; margin:0; }
+    .fusion-card.hud .greeting-row { display:none; } 
+    .fusion-card.hud .text-block { flex: unset; }
+    
+    /* Helper de Arrastar no HUD */
+    .drag-handle {
+        width: 60px; height: 5px;
+        background: rgba(255,255,255,0.15);
+        border-radius: 10px;
+        position: absolute; bottom: 8px; left: 50%;
+        transform: translateX(-50%);
+        display: none; cursor: grab; pointer-events: none; 
+        transition: background 0.3s;
+    }
+    .fusion-card.hud:active .drag-handle { background: var(--neon-cyan); width: 70px; }
+    .fusion-card.hud .drag-handle { display: block; }
+    
+    /* HUD Menu Btn */
+    .hud-menu-btn { display: none; background: transparent; border: none; color: rgba(255,255,255,0.6); cursor: pointer; }
+    .fusion-card.hud .hud-menu-btn { display: block; }
+    .fusion-card.hud .clock-widget { display: none; } 
+
+    /* Internals */
+    .card-header{
+        display:flex;align-items:center;gap:15px;margin-bottom:18px; width:100%; cursor: pointer;
+        /* Header é área de arraste, então bloqueamos pan-y nativo aqui */
+        touch-action: none; 
+    }
+    .avatar-slot{width:64px;height:64px;border-radius:18px;overflow:hidden;opacity:0;transition:opacity 0.35s}
+    .avatar-slot.shown{opacity:1}
+
+    .text-block{flex:1;display:flex;flex-direction:column;justify-content:center}
+    .greeting-row{font-size:1.5rem;line-height:1;display:flex;align-items:baseline;gap:6px;flex-wrap:wrap}
+    .txt-thin{font-weight:200;color:rgba(255,255,255,0.7)}
+    .txt-heavy{font-weight:600;color:#fff}
+
+    .brand-dual{font-size:2.2rem;font-weight:900;line-height:0.95;text-transform:uppercase;letter-spacing:-2px;margin-top:4px;
+      background:linear-gradient(-45deg,#fff,var(--neon-cyan),var(--neon-purple),#fff);background-size:300%;-webkit-background-clip:text;-webkit-text-fill-color:transparent;animation:gradientFlow 4s ease infinite;
+    }
+    @keyframes gradientFlow{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+
+    .clock-widget{text-align:right}
+    .time-display{font-family:var(--font-code);font-size:1rem;color:rgba(255,255,255,0.5);font-weight:700}
+    .status-led{font-size:0.6rem;color:var(--neon-cyan);text-transform:uppercase;letter-spacing:1px;margin-top:4px;display:block}
+
+    /* Small Preview */
+    .small-preview{display:none;align-items:center;gap:10px;margin-top:8px;padding:8px 10px;border-radius:10px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.03);font-family:var(--font-code);font-size:0.86rem;color:rgba(255,255,255,0.9);cursor:pointer;}
+    .small-preview .mini-avatar{width:30px;height:30px;border-radius:6px;flex-shrink:0;overflow:hidden;display:inline-flex;align-items:center;justify-content:center}
+    .small-preview .small-text{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:calc(100% - 110px)}
+    .small-preview .ident-badge{margin-left:auto;font-weight:700;font-size:0.78rem;padding:4px 8px;border-radius:999px;background:rgba(255,255,255,0.03);color:rgba(255,255,255,0.9);border:1px solid rgba(255,255,255,0.02)}
+    .fusion-card.closed:not(.orb):not(.hud) .small-preview{display:flex}
+
+    .card-body{display:flex;flex-direction:column;gap:12px}
+    .stagger-item{opacity:0;transform:translateY(15px);transition:opacity 0.4s ease, transform 0.4s var(--ease-overshoot)}
+    .content-visible .stagger-item{opacity:1;transform:translateY(0)}
+    .content-visible .stagger-item:nth-child(1){transition-delay:0.1s}
+    .content-visible .stagger-item:nth-child(2){transition-delay:0.18s}
+    .content-visible .stagger-item:nth-child(3){transition-delay:0.25s}
+    .content-visible .stagger-item:nth-child(4){transition-delay:0.30s}
+
+    .cyber-input{width:100%;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:16px 50px 16px 18px;color:#fff;font-family:var(--font-code);font-size:0.9rem}
+
+    /* COLLAPSIBLE SECTIONS */
+    .activation-wrap{display:flex;flex-direction:column;gap:8px}
+    .activation-card{background:rgba(0,0,0,0.25);border:1px solid rgba(255,255,255,0.04);padding:12px;border-radius:10px;overflow:hidden;transition:all 320ms var(--ease-smooth)}
+    .activation-pre{font-family:var(--font-code);white-space:pre-wrap;margin:0;padding:8px;background:rgba(0,0,0,0.12);border-radius:8px;border:1px dashed rgba(255,255,255,0.03);color:#fff;font-size:0.75rem}
+    
+    .activation-hidden{max-height:0;opacity:0;padding:0 12px;pointer-events:none; margin-top:0;}
+    .activation-open{max-height:567px;opacity:1;padding:12px; margin-top:4px;}
+
+    .activation-toggle {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 8px 4px; cursor: pointer; opacity: 0.9; transition: 0.2s;
+    }
+    .activation-toggle:hover { opacity: 1; }
+
+    .trigger-btn{width:100%;padding:12px;border:1px dashed rgba(255,255,255,0.1);border-radius:12px;background:rgba(255,255,255,0.02);color:rgba(255,255,255,0.5);font-size:0.75rem;letter-spacing:2px;text-transform:uppercase;cursor:pointer;display:flex;justify-content:center;align-items:center;gap:8px;transition:0.2s}
+    .trigger-btn:hover{background:rgba(255,255,255,0.04);color:#fff;border-color:rgba(255,255,255,0.3)}
+    
+    .mode-btn { background: rgba(0,242,255,0.05); border-color: rgba(0,242,255,0.2); color: var(--neon-cyan); }
+    .mode-btn:hover { background: rgba(0,242,255,0.15); box-shadow: 0 0 15px rgba(0,242,255,0.1); }
+    .mode-btn.active-mode { background: var(--neon-cyan); color: #000; box-shadow: 0 0 20px rgba(0,242,255,0.4); border-color:transparent; }
+
+    .stats-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px}
+    .stat-box{background:rgba(255,255,255,0.03);border-radius:12px;padding:10px;text-align:center}
+    .stat-lbl{font-size:0.55rem;text-transform:uppercase;color:rgba(255,255,255,0.4);display:block;margin-bottom:4px}
+    .stat-val{font-family:var(--font-code);font-size:0.9rem;font-weight:700;color:var(--neon-cyan)}
+
+    .progress-container{background:rgba(0,0,0,0.2);padding:12px;border-radius:12px}
+    .bar-track{height:4px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden;margin:8px 0}
+    .bar-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--neon-cyan),var(--neon-purple));box-shadow:0 0 10px var(--neon-cyan);transition:width 1.2s ease-out}
+    .bar-meta{display:flex;justify-content:space-between;font-size:0.6rem;color:rgba(255,255,255,0.4);font-family:var(--font-code)}
+
+    .toaster-wrap{position:fixed;right:20px;bottom:20px;z-index:99999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+    .toaster{pointer-events:auto;background:linear-gradient(180deg,#0b1220,#071018);border:1px solid rgba(255,255,255,0.06);padding:10px 14px;border-radius:10px;box-shadow:0 18px 40px rgba(0,0,0,0.6);font-family:var(--font-ui);font-size:0.95rem;opacity:0;transform:translateY(8px);transition:all 260ms var(--ease-smooth)}
+    .toaster.show{opacity:1;transform:translateY(0)}
+    .toaster.error{border-color:var(--neon-danger);color:var(--neon-danger)}
+    .toaster.success{border-color:var(--neon-success);color:var(--neon-success)}
+
+    /* Keys Modal styles */
+    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.65);display:none;align-items:center;justify-content:center;z-index:99998;backdrop-filter:blur(8px)}
+    .keys-card{width:90%;max-width:760px;background:linear-gradient(180deg,#071018,#0b1220);border:1px solid rgba(255,255,255,0.08);padding:20px;border-radius:16px;color:#fff;box-shadow:0 20px 50px rgba(0,0,0,0.8);max-height:90vh;display:flex;flex-direction:column}
+    .keys-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:15px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,0.05)}
+    .key-list{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding-right:6px;min-height:100px}
+    .key-item{display:flex;align-items:center;gap:8px;padding:12px;border-radius:10px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.02)}
+    .key-item.active-item{background:rgba(0, 242, 255, 0.05);border-color:rgba(0, 242, 255, 0.2)}
+    .key-item .meta{flex:1}
+    .small-btn{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.1);padding:6px 10px;border-radius:8px;color:#fff;cursor:pointer;font-size:0.75rem;text-transform:uppercase;font-weight:600;transition:0.2s}
+    .small-btn:hover{background:rgba(255,255,255,0.08);border-color:rgba(255,255,255,0.2)}
+    .small-btn.active-btn{background:var(--neon-success);color:#000;border:none}
+    .danger{color:var(--neon-danger);border-color:rgba(255,42,109,0.3)}
+    .danger:hover{background:rgba(255,42,109,0.1)}
+
+    .form-section{margin-top:15px;padding-top:15px;border-top:1px solid rgba(255,255,255,0.05)}
+    .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+    .form-row{display:flex;gap:8px;}
+    .form-row input, .form-grid input{width:100%;padding:10px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.08);background:#030406;color:#fff;font-family:var(--font-code);font-size:0.85rem}
+    .form-row input:focus, .form-grid input:focus{border-color:var(--neon-cyan)}
+
+    /* Vault Modal */
+    #vaultModal .keys-card{max-width:400px;text-align:center}
+    .vault-icon{width:50px;height:50px;margin:0 auto 15px;color:var(--neon-purple);background:rgba(189,0,255,0.1);border-radius:50%;display:flex;align-items:center;justify-content:center}
+
+    /* --- CHAT STYLES --- */
+    #particles-js{position:absolute;inset:0;z-index:12; pointer-events:none; }
+    .svg-container{position:absolute;top:35%;left:50%;transform:translate(-50%,-50%);
+                   width:160px;height:160px;z-index:-1; pointer-events: none; }
+    .svg-container object{width:100%;height:100%;}
+
+    .top-info {
+      position: fixed; top: 28px; left:50%;transform:translate(-50%,-50%); z-index: 3;
+      background: rgba(0,0,0,0.35); padding: 8px 12px; border-radius: 12px; font-size: 0.69em;
+      backdrop-filter: blur(6px);
+      pointer-events: none; 
+    }
+
+    .response-container{
+      position:fixed; left:20px; right:20px; bottom:160px;
+      padding:12px;background:rgba(0,0,0,0.4);backdrop-filter:blur(10px);
+      border-radius:20px; max-height:calc(100vh - 220px); overflow-y:auto; -webkit-overflow-scrolling:touch; z-index:1;
+    }
+    .page{display:none; opacity:0; transition:opacity 0.8s ease-in-out}
+    .page.active{display:block; opacity:1}
+    .page.initial{text-align:center;font-size:1.1em}
+    .response-controls{display:flex;justify-content:space-between;align-items:center;margin-top:15px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.2)}
+    .control-buttons{display:flex;gap:10px;align-items:center}
+    .control-btn{background:rgba(255,255,255,0.05);padding:6px;border-radius:6px;cursor:pointer;transition:background 0.4s;display:flex;gap:6px;border:none;outline:none}
+    .control-btn:hover{background:rgba(255,255,255,0.12)}
+    .control-btn svg{stroke:rgba(255,255,255,0.5);fill:none}
+    
+    /* Toggle Button Styles Updated */
+    .toggle-button svg{color:#fff;stroke:rgba(255,255,255,0.3);fill:none; transition: all 0.3s;}
+    .toggle-button.active svg{stroke:var(--neon-success); filter: drop-shadow(0 0 5px var(--neon-success));}
+    .toggle-button.error svg{stroke:var(--neon-danger); filter: drop-shadow(0 0 5px var(--neon-danger));}
+    
+    .pagination{display:flex;align-items:center;gap:10px}
+    .pagination button{background:none;border:none;font-size:1.2em;color:#6fe4fb;cursor:pointer;transition:transform 0.4s}
+    .pagination button:hover{transform:scale(1.2)}
+
+    .response-block{
+      margin:1rem 0;padding:1.2rem;border-radius:12px;
+      animation:fadeIn 1.8s ease forwards; transition:box-shadow 0.4s,transform 0.4s;
+      line-height:1.5;position:relative;cursor:pointer;overflow:hidden;animation:pulse 6s infinite ease-in-out;
+      background: linear-gradient(135deg, rgba(255,255,255,0.02), rgba(0,0,0,0.25));
+      border: 1px solid rgba(255,255,255,0.03);
+    }
+    .response-block h3{margin-bottom:12px}
+    .response-block:hover{box-shadow:0 0 15px rgba(0,255,255,0.12)}
+    .response-block .meta { position:absolute; top:8px; right:8px; display:flex; gap:6px; }
+    .crystal-btn {
+      background: rgba(0,0,0,0.25); border-radius:6px; padding:6px; cursor:pointer; border:none; color:var(--neon-cyan);
+    }
+    .response-block.clicked{animation:clickPulse 0.8s ease-out}
+    .response-block.expanded{transform:scale(1.03); background:rgba(0,0,0,0.6); z-index:2}
+    .intro{background:linear-gradient(135deg,rgba(0,255,255,0.08),rgba(0,100,100,0.04));border-left:4px solid #0ff}
+    .middle{background:linear-gradient(135deg,rgba(255,255,255,0.02),rgba(50,50,50,0.06));border-left:4px solid rgba(255,255,255,0.2)}
+    .ending{background:linear-gradient(135deg,rgba(255,0,255,0.06),rgba(100,0,100,0.04));border-left:4px solid #f0f}
+    .footer-text{margin-top:12px;font-size:0.78em;text-align:center;font-style:italic}
+
+    .input-container{position:fixed;left:20px;right:20px;bottom:90px;display:flex;gap:10px;z-index:2;max-width:calc(100% - 40px)}
+    .input-container input{flex:1;padding:10px;border:none;border-radius:20px;background:rgba(255,255,255,0.1);color:inherit;outline:none;font-size:16px;transition:background 0.4s}
+    .input-container input:focus{background:rgba(255,255,255,0.2)}
+    .input-container button{width:60px;height:60px;border:none;border-radius:50%;background:linear-gradient(45deg,#111,#5e5c5e);color:#fff;font-size:1.5em;cursor:pointer;display:flex;justify-content:center;align-items:center;animation:pulse 2s infinite ease-in-out;transition:transform 0.4s}
+    .input-container button:hover{transform:scale(1.1)}
+
+    /* Generic Modal / Panel */
+    .modal, .panel { position: fixed; inset: 0; display: none; z-index: 9998; justify-content:center; align-items:center; }
+    .modal.active, .panel.active { display:flex }
+    .box {
+      background:#1a1a1a;padding:20px;border-radius:12px;border:1px solid rgba(255,255,255,0.06);
+      width:90%;max-width:520px;box-shadow:0 8px 40px rgba(0,0,0,0.6); color:#fff;
+    }
+    .box h3{color:var(--neon-cyan);margin-bottom:8px}
+    .row{display:flex;gap:10px;align-items:center}
+    .col{display:flex;flex-direction:column;gap:8px}
+    .input-group label{font-size:0.85em;color:#aaa;margin-left:4px}
+    .input-group input[type="text"], .input-group input[type="password"], .input-group input[type="file"]{
+      width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.08);background:rgba(0,0,0,0.5);color:#fff;outline:none;
+    }
+    .settings-actions{display:flex;gap:10px;margin-top:12px}
+    .btn{padding:10px;border-radius:8px;border:none;cursor:pointer;font-weight:600}
+    .btn-prim{background:var(--neon-cyan);color:#000}
+    .btn-sec{background:rgba(255,255,255,0.08);color:#fff}
+    .small {font-size:0.85em;color:#bbb}
+    .crystal-list { max-height:300px; overflow:auto; display:flex; flex-direction:column; gap:8px }
+    .crystal-item { background: rgba(255,255,255,0.02); padding:8px; border-radius:8px; display:flex; justify-content:space-between; gap:8px; align-items:flex-start }
+    .crystal-item .actions { display:flex; gap:6px }
+    
+    .panel-divider { height: 1px; background: rgba(255,255,255,0.1); margin: 15px 0; width: 100%; }
+    .section-title { font-size: 0.8rem; text-transform: uppercase; color: var(--neon-cyan); letter-spacing: 1px; margin-bottom: 8px; font-weight: 700; }
+
+    @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.02)}}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes clickPulse{0%,100%{opacity:1}50%{opacity:0.8}}
+
+    /* Mantra Footer */
+    #mantra-toggle {
+      position: fixed; bottom: 54px; left: 50%; transform: translateX(-50%); z-index: 1;
+      background: rgba(15, 15, 15, 0.4); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.06);
+      padding: 3px 8px; border-radius: 100px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.6); transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1); min-width: 220px;
+    }
+    #mantra-toggle:hover { background: rgba(25, 25, 25, 0.9); border-color: rgba(255,255,255,0.15); transform: translateX(-50%) translateY(-2px); }
+    #mantra-text { font-style: italic; color: #777; font-size: 0.78rem; white-space: nowrap; transition: all 0.4s ease; }
+    #mantra-toggle.collapsed { background: transparent; border-color: rgba(255, 215, 0, 0.3); box-shadow: 0 0 20px rgba(255, 215, 0, 0.05); }
+
+    .fade-out { opacity: 0; transform: translateY(5px); }
+    .fade-in { opacity: 1; transform: translateY(0); }
+    body.zen-mode .response-container, body.zen-mode .input-container, body.zen-mode .top-info, body.zen-mode .svg-container { opacity: 0; pointer-events: none; filter: blur(12px); transition: all 0.6s ease; }
+.lock-button {
+      position: fixed;
+      bottom: 21px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 24px;
+      height: 24px;
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.5);
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(4px);
+      transition: background 0.3s ease, border-color 0.3s ease;
+      z-index: 12;
+    }
+
+    .lock-button:hover {
+      background: rgba(255,255,255,0.1);
+      border-color: rgba(255,255,255,0.8);
+    }
+    @media (max-width:500px){ .form-grid{grid-template-columns:1fr} .keys-card{padding:15px} .key-item{flex-direction:column;align-items:flex-start} .key-item .actions{width:100%;display:flex;justify-content:flex-end;margin-top:8px} .box{max-width:92%} .svg-container{width:120px;height:120px} }
+  </style>
+<style>
+        :root {
+          --z-base: 0;
+          --z-content: 100;
+          --z-widget: 500;
+          --z-overlay: 1000;
+          --z-system: 5000;
+        }
+      </style><style>
+  :root{
+    --bg: linear-gradient(180deg,#000,#111);
+    --text:#d7d7d7;
+    --accent: #0ff;
+    --fast:.25s; --med:.6s; --slow:1.2s;
+    --card-bg: rgba(255,255,255,0.03);
+    --glass: rgba(255,255,255,0.04);
+  }
+  html,body{height:100%;margin:0;font-family:Montserrat,system-ui,-apple-system; background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}
+  .wrap{width:100%;height:100%;position:relative;overflow:hidden;display:flex;flex-direction:column}
+  /* iframe area */
+  .content{flex:1;position:relative;display:flex}
+  iframe#frame{width:100%;height:100%;border:0;transition:opacity .4s;opacity:1}
+  /* symbolbar */
+  .symbol-bar{position:fixed;right:8px;top:33%;display:flex;flex-direction:column;gap:10px;z-index:60}
+  .symbol-button{width:28px;height:28px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);background:var(--card-bg);color:var(--text);display:flex;align-items:center;justify-content:center;cursor:pointer;backdrop-filter:blur(6px)}
+  .symbol-button:hover{transform:scale(1.06);box-shadow:0 6px 18px rgba(0,0,0,0.4)}
+  /* controls */
+  .controls{position:fixed;left:16px;top:120px;display:flex;flex-direction:column;gap:10px;z-index:60}
+  .btn{padding:8px 10px;border-radius:8px;background:var(--glass);border:1px solid rgba(255,255,255,0.06);cursor:pointer;color:var(--text)}
+  /* decoder modal */
+  #decoderBox{position:fixed;left:50%;top:18%;transform:translateX(-50%);background:rgba(0,0,0,0.8);padding:12px;border-radius:12px;backdrop-filter:blur(6px);z-index:90;display:none}
+  #decoderBox input{padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:var(--text);}
+  /* pulsos log */
+  #pulsos-container{position:fixed;left:50%;top:18%;transform:translateX(-50%);max-width:640px;width:78%;z-index:-1;pointer-events:none}
+  #pulsos{pointer-events:auto;background:rgba(0,0,0,0.45);padding:8px;border-radius:10px;max-height:220px;overflow:auto;color:var(--accent);font-family:monospace}
+  /* small footer */
+  .footer{position:fixed;left:20px;right:20px;bottom:12px;text-align:center;z-index:60;color:rgba(215,215,215,0.7);font-size:0.9em}
+  /* responsive */
+  @media (max-width:600px){ .symbol-bar{right:9px;top:56%} .controls{left:8px;top:90px} #pulsos{max-height:140px} }
+</style></head>
+<body>
+
+  <!-- Cinematic Elements -->
+  <div id="snap-zone"></div>
+  <div class="ambient-light"><div class="blob blob-1"></div><div class="blob blob-2"></div></div>
+  <div id="particles-js"><canvas class="particles-js-canvas-el"></canvas></div>
+
+  <div class="svg-container">
+    <object data="3D_logo_Dual_Infodose_9.svg" type="image/svg+xml"></object>
+  </div>
+
+  <div class="top-info" id="topInfo">
+    <span id="displayUser">User: —</span> · <span id="displayInfodose">Infodose: —</span>
+  </div>
+
+  <div class="container">
+    <div class="fusion-card closed" id="mainCard">
+
+      <div class="card-header" id="cardHeader">
+        <div class="avatar-slot" id="avatarTarget" title="Gerenciar Chaves (Cofre)"></div>
+        <div class="text-block">
+          <div class="greeting-row">
+            <span class="txt-thin" id="lblHello">Oi,</span>
+            <span class="txt-heavy" id="lblName">Convidado</span>
+          </div>
+          <div class="brand-dual">DUAL</div>
+        </div>
+        <div class="clock-widget">
+          <div class="time-display" id="clockTime">00:00</div>
+          <span class="status-led">ONLINE</span>
+        </div>
+        <!-- Button visible only in HUD mode -->
+        <button class="hud-menu-btn" id="hudMenuBtn" title="Menu Rápido"><i data-lucide="menu"></i></button>
+      </div>
+      
+      <!-- Trigger visible only on Orb Hover -->
+      <div class="orb-menu-trigger" id="orbMenuTrigger" title="Menu Rápido">●●●</div>
+      <!-- Drag Handle for HUD -->
+      <div class="drag-handle"></div>
+
+      <div class="small-preview" id="smallPreview" title="Gerenciar Chaves">
+        <div class="mini-avatar" id="smallMiniAvatar"></div>
+        <div class="small-text" id="smallText">Aguardando ativação...</div>
+        <div class="ident-badge" id="smallIdent">--</div>
+      </div>
+
+      <div class="card-body" id="cardBody">
+        <!-- Main Input User -->
+        <div class="input-wrapper stagger-item">
+          <input type="text" class="cyber-input" id="inputUser" placeholder="Identifique-se..." autocomplete="off">
+        </div>
+
+        <!-- Section 1: ASCII Activation -->
+        <div class="activation-wrap stagger-item">
+          <div class="activation-toggle" onclick="toggleSection('activationCard')">
+            <div style="display:flex;align-items:center;gap:8px">
+              <div style="width:10px;height:10px;border-radius:99px;background:var(--neon-cyan)"></div>
+              <strong style="letter-spacing:1px;font-size:0.9rem">Ativação ASCII</strong>
+            </div>
+            <div style="margin-left:auto;font-size:0.82rem;color:rgba(255,255,255,0.6)">BASE v1</div>
+          </div>
+          <div id="activationCard" class="activation-card activation-hidden">
+            <div style="display:flex;align-items:flex-start;gap:10px">
+              <div style="display:flex;align-items:center;gap:8px">
+                <div class="mini-avatar" id="actMiniAvatar"></div>
+                <div><div style="font-weight:700">CÉREBRO</div><div style="font-size:0.78rem;opacity:0.6"><span id="actName">User</span></div></div>
+              </div>
+              <div class="activation-badge" id="actBadge" style="margin-left:auto">v:--</div>
+            </div>
+            <pre id="actPre" class="activation-pre">Carregando...</pre>
+            <div class="activation-controls" style="display:flex;gap:8px;margin-top:8px">
+              <button class="trigger-btn" id="copyActBtn">COPIAR</button>
+              <button class="trigger-btn" id="downloadActBtn">PNG</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 2: System & Neural (Config) - Embedded in Card -->
+        <div class="activation-wrap stagger-item">
+            <div class="activation-toggle" onclick="toggleSection('systemCard')">
+                <div style="display:flex;align-items:center;gap:8px">
+                  <div style="width:10px;height:10px;border-radius:99px;background:var(--neon-purple)"></div>
+                  <strong style="letter-spacing:1px;font-size:0.9rem">SYSTEM &amp; NEURAL</strong>
+                </div>
+                <div style="margin-left:auto;font-size:0.82rem;color:rgba(255,255,255,0.6)">CONFIG</div>
+            </div>
+            <div id="systemCard" class="activation-card activation-hidden">
+                <div class="col">
+                   <div class="section-title">IDENTIDADE DA INFODOSE</div>
+                   <input type="text" id="infodoseNameInput" placeholder="Nome: World System..." style="width:100%;margin-bottom:8px;padding:8px;border-radius:6px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1);color:#fff">
+                   
+                   <div class="section-title" style="margin-top:8px">CONEXÃO NEURAL (SK)</div>
+                   <input type="password" id="apiKeyInput" placeholder="sk-or-..." autocomplete="off" style="width:100%;margin-bottom:6px;padding:8px;border-radius:6px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1);color:#fff">
+                   <input type="text" id="modelInput" placeholder="Modelo AI..." style="width:100%;margin-bottom:8px;padding:8px;border-radius:6px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1);color:#fff">
+                   
+                  <div class="model-toggle">
+  <select id="modelSelect" class="btn btn-sec">
+    <option value="" disabled>Modelo</option>
+    <option value="allenai/molmo-2-8b:free">MolMo</option>
+    <option value="nvidia/nemotron-3-nano-30b-a3b:free">NemoTron</option>
+    <option value="mistralai/devstral-2512:free">DevStral</option>
+    <option value="openai/gpt-oss-120b:free">OSS120b</option>
+    <option value="custom-model">Custom</option>
+  </select>
+</div>
+                   <div class="section-title" style="margin-top:8px">TREINAMENTO</div>
+                   <div style="display:flex;gap:6px">
+                       <input type="file" id="trainingUpload" accept=".txt" style="display:none">
+                       <button class="trigger-btn" onclick="document.getElementById('trainingUpload').click()" style="padding:8px;flex:1">UPLOAD .TXT</button>
+                       <button id="exportTrainingBtn" class="trigger-btn" style="padding:8px;flex:1">BAIXAR</button>
+                   </div>
+                   <div id="trainingFileName" class="small" style="margin-top:4px;color:#9bd;font-size:0.75rem">Vazio</div>
+
+                   <div class="panel-divider" style="margin:10px 0"></div>
+
+                   <div style="display:flex; flex-direction:column; gap:6px;">
+                        <div style="display:flex;align-items:center;gap:6px;font-size:0.85rem">
+                            <input type="checkbox" id="assistantActiveCheckbox"> <label>Infodose Ativa</label>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:6px;font-size:0.85rem">
+                            <input type="checkbox" id="trainingActiveCheckbox"> <label>Treinamento Ativo</label>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:6px;font-size:0.85rem">
+                            <input type="checkbox" id="zenModeCheckbox"> <label>Modo Zen</label>
+                        </div>
+                   </div>
+
+                   <button id="saveSystemBtn" class="trigger-btn" style="margin-top:12px;background:var(--neon-cyan);color:#000;border:none;font-weight:700">SALVAR CONFIGURAÇÃO</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="stagger-item" style="margin-top:4px">
+            <div class="stat-lbl" style="margin-bottom:6px">INTERFACE MODE</div>
+            <div style="display:flex; gap:8px;">
+                <button class="trigger-btn mode-btn active-mode" id="btnModeCard" onclick="setMode('card')" style="flex:1" title="Modo Padrão">CARD</button>
+                <button class="trigger-btn mode-btn" id="btnModeOrb" onclick="setMode('orb')" style="flex:1" title="Flutuante">ORB</button>
+                <button class="trigger-btn mode-btn" id="btnModeHud" onclick="setMode('hud')" style="flex:1" title="Barra de Topo">HUD</button>
+            </div>
+        </div>
+
+        
+      </div>
+
+    </div>
+  </div>
+
+  <div class="toaster-wrap" id="toasterWrap"></div>
+
+  <!-- KEYS MANAGER MODAL -->
+  <div id="keysModal" class="modal-overlay" aria-hidden="true">
+    <div class="keys-card" role="dialog">
+      <div class="keys-header">
+        <div>
+          <div id="keysTitle" style="font-weight:800;font-size:1.1rem;color:var(--neon-cyan)">USER KEYS MANAGER</div>
+          <div style="color:rgba(255,255,255,0.6);font-size:0.85rem">Gerencie suas chaves API com segurança local (Cofre).</div>
+        </div>
+        <button id="closeKeysBtn" class="small-btn">X</button>
+      </div>
+      <div class="key-list" id="keyList"></div>
+      <div class="form-section">
+        <div class="form-grid">
+          <input id="keyNameInput" placeholder="Nome da chave (ex: Principal)">
+          <input id="keyTokenInput" type="password" placeholder="Token / ESK (Opcional)">
+        </div>
+        <div class="form-row">
+          <input id="keyWebhookInput" placeholder="Webhook URL (https://...)" style="flex:1">
+          <button id="testWebhookBtn" class="small-btn" title="Testar Conexão">PING</button>
+        </div>
+        <button id="addKeyBtn" class="small-btn" style="width:100%;margin-top:8px;background:rgba(255,255,255,0.1)">ADICIONAR CHAVE</button>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:space-between;margin-top:15px;border-top:1px solid rgba(255,255,255,0.05);padding-top:12px">
+        <div style="font-size:0.7rem;color:rgba(255,255,255,0.4);display:flex;align-items:center;gap:5px">
+          <i data-lucide="shield-check" style="width:14px"></i> <span id="vaultStatusText">Cofre Aberto</span>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button id="lockVaultBtn" class="small-btn danger">BLOQUEAR</button>
+          <button id="exportKeysBtn" class="small-btn">Export</button>
+          <button id="importKeysBtn" class="small-btn">Import</button>
+          <input id="importFileInput" type="file" accept="application/json" style="display:none">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VAULT UNLOCK MODAL -->
+  <div id="vaultModal" class="modal-overlay" aria-hidden="true">
+    <div class="keys-card">
+      <div class="vault-icon"><i data-lucide="lock" style="width:24px;height:24px"></i></div>
+      <h3 style="margin:0 0 10px 0;font-weight:800">ACESSO AO COFRE</h3>
+      <p style="margin:0 0 15px 0;font-size:0.9rem;color:rgba(255,255,255,0.6)">Seus dados estão criptografados. Digite a senha para desbloquear.</p>
+      <input type="password" id="vaultPassInput" class="cyber-input" style="text-align:center;margin-bottom:12px" placeholder="Senha...">
+      <div style="display:flex;gap:8px;justify-content:center">
+         <button id="vaultCancelBtn" class="small-btn">Cancelar</button>
+         <button id="vaultUnlockBtn" class="small-btn active-btn">DESBLOQUEAR</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="response-container" id="response">
+    <div class="page initial active">
+      <strong>Clique no ◉ e diga “Oi, Dual”.</strong><br>
+      <em>Sempre único. Sempre seu.</em>
+    </div>
+    <div class="response-controls">
+      <div class="control-buttons">
+        <button class="control-btn copy-button" title="Copiar tudo">
+          <svg viewBox="0 0 24 24" width="20"><circle cx="12" cy="12" r="10"></circle><rect x="6" y="6" width="12" height="12"></rect></svg>
+        </button>
+        <button class="control-btn paste-button" title="Colar">
+          <svg viewBox="0 0 24 24" width="20"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="4" x2="12" y2="20"></line></svg>
+        </button>
+        <button id="toggleBtn" class="control-btn toggle-button" title="Check Connection &amp; Training">
+          <!-- Toggle Icon (Power/Signal hybrid) -->
+          <svg viewBox="0 0 24 24" width="20" height="20" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path>
+            <line x1="12" y1="2" x2="12" y2="12"></line>
+          </svg>
+        </button>
+        <button id="crystalBtn" class="control-btn" title="Cristalizados">
+          <svg viewBox="0 0 24 24" width="20" height="20"><path d="M12 2l2.9 6.3L21 10l-5 3.6L17.8 21 12 17.7 6.2 21 7 13.6 2 10l6.1-1.7L12 2z"></path></svg>
+        </button>
+      </div>
+      <div class="pagination">
+        <button data-action="prev">⟵</button>
+        <span id="pageIndicator">1 / 1</span>
+        <button data-action="next">⟶</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="input-container">
+    <input id="userInput" type="text" placeholder="Diga: 'oi, Dual'...">
+    <button id="sendBtn" title="Enviar">➤</button>
+    <button id="voiceBtn" title="Falar">
+      <object data="Reset_buttom_Dual-Infodose.svg" type="image/svg+xml" width="36" height="36" style="pointer-events: none;"></object>
+    </button>
+  </div>
+
+  <div id="crystalModal" class="modal">
+    <div class="box">
+      <h3>Cristalizados</h3>
+      <div class="row" style="margin-bottom:8px">
+        <button id="exportAllCrystal" class="btn btn-prim">Exportar todos</button>
+        <button id="clearAllCrystal" class="btn btn-sec">Limpar tudo</button>
+      </div>
+      <div class="crystal-list" id="crystalList"></div>
+      <div style="margin-top:12px;display:flex;justify-content:flex-end;gap:8px">
+        <button id="closeCrystal" class="btn btn-sec">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="mantra-toggle">
+    <span id="mantra-text">Do seu jeito. <strong>Sempre</strong> único. <strong>Sempre</strong> seu.</span>
+  </div>
+
+
+  <script>
+    lucide.createIcons();
+
+    const els = {
+      card: document.getElementById('mainCard'),
+      header: document.getElementById('cardHeader'),
+      avatarTgt: document.getElementById('avatarTarget'),
+      input: document.getElementById('inputUser'),
+      lblHello: document.getElementById('lblHello'),
+      lblName: document.getElementById('lblName'),
+      clock: document.getElementById('clockTime'),
+      smallPreview: document.getElementById('smallPreview'),
+      smallMiniAvatar: document.getElementById('smallMiniAvatar'),
+      smallText: document.getElementById('smallText'),
+      smallIdent: document.getElementById('smallIdent'),
+      actCard: document.getElementById('activationCard'),
+      actPre: document.getElementById('actPre'),
+      actName: document.getElementById('actName'),
+      actMiniAvatar: document.getElementById('actMiniAvatar'),
+      actBadge: document.getElementById('actBadge'),
+      securityStatus: document.getElementById('securityStatus'),
+      // Buttons
+      btnModeCard: document.getElementById('btnModeCard'),
+      btnModeOrb: document.getElementById('btnModeOrb'),
+      btnModeHud: document.getElementById('btnModeHud'),
+      orbMenuTrigger: document.getElementById('orbMenuTrigger'),
+      hudMenuBtn: document.getElementById('hudMenuBtn'),
+      snapZone: document.getElementById('snap-zone'),
+      // Keys UI
+      keysModal: document.getElementById('keysModal'),
+      keyList: document.getElementById('keyList'),
+      keyName: document.getElementById('keyNameInput'),
+      keyToken: document.getElementById('keyTokenInput'),
+      keyWebhook: document.getElementById('keyWebhookInput'),
+      addKeyBtn: document.getElementById('addKeyBtn'),
+      closeKeysBtn: document.getElementById('closeKeysBtn'),
+      testWebhookBtn: document.getElementById('testWebhookBtn'),
+      exportKeysBtn: document.getElementById('exportKeysBtn'),
+      importKeysBtn: document.getElementById('importKeysBtn'),
+      importFileInput: document.getElementById('importFileInput'),
+      lockVaultBtn: document.getElementById('lockVaultBtn'),
+      vaultStatusText: document.getElementById('vaultStatusText'),
+      // Vault UI
+      vaultModal: document.getElementById('vaultModal'),
+      vaultPass: document.getElementById('vaultPassInput'),
+      vaultUnlock: document.getElementById('vaultUnlockBtn'),
+      vaultCancel: document.getElementById('vaultCancelBtn'),
+      // New System UI
+      systemCard: document.getElementById('systemCard'),
+      toggleBtn: document.getElementById('toggleBtn')
+    };
+
+    // --- CRYPTO UTILS ---
+    const CRYPTO = {
+      algo: { name: 'AES-GCM', length: 256 },
+      pbkdf2: { name: 'PBKDF2', hash: 'SHA-256', iterations: 100000 },
+      salt: window.crypto.getRandomValues(new Uint8Array(16)), 
+      async getKey(password, salt) {
+        const enc = new TextEncoder();
+        const keyMaterial = await window.crypto.subtle.importKey("raw", enc.encode(password), "PBKDF2", false, ["deriveKey"]);
+        return window.crypto.subtle.deriveKey({ ...this.pbkdf2, salt: salt }, keyMaterial, this.algo, false, ["encrypt", "decrypt"]);
+      },
+      async encrypt(data, password) {
+        const salt = window.crypto.getRandomValues(new Uint8Array(16));
+        const iv = window.crypto.getRandomValues(new Uint8Array(12));
+        const key = await this.getKey(password, salt);
+        const encoded = new TextEncoder().encode(JSON.stringify(data));
+        const encrypted = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv: iv }, key, encoded);
+        const bundle = { s: Array.from(salt), iv: Array.from(iv), d: Array.from(new Uint8Array(encrypted)) };
+        return JSON.stringify(bundle);
+      },
+      async decrypt(bundleStr, password) {
+        try {
+          const bundle = JSON.parse(bundleStr);
+          const salt = new Uint8Array(bundle.s);
+          const iv = new Uint8Array(bundle.iv);
+          const data = new Uint8Array(bundle.d);
+          const key = await this.getKey(password, salt);
+          const decrypted = await window.crypto.subtle.decrypt({ name: "AES-GCM", iv: iv }, key, data);
+          return JSON.parse(new TextDecoder().decode(decrypted));
+        } catch(e) { throw new Error("Senha incorreta ou dados corrompidos"); }
+      }
+    };
+
+    // --- STATE & PERSISTENCE ---
+    const STORAGE_KEY = 'fusion_os_data_v2';
+    const UI_STATE_KEY = 'fusion_os_ui_state';
+    
+    let STATE = {
+      keys: [], 
+      user: 'Convidado',
+      isEncrypted: false,
+      encryptedData: null
+    };
+    let SESSION_PASSWORD = null;
+
+    function saveUIState() {
+        const mode = state.isOrb ? 'orb' : (state.isHud ? 'hud' : 'card');
+        const uiState = {
+            mode: mode,
+            left: els.card.style.left,
+            top: els.card.style.top,
+            zen: document.body.classList.contains('zen-mode')
+        };
+        localStorage.setItem(UI_STATE_KEY, JSON.stringify(uiState));
+    }
+    
+    function loadUIState() {
+        const raw = localStorage.getItem(UI_STATE_KEY);
+        if(!raw) return;
+        try {
+            const ui = JSON.parse(raw);
+            if(ui.zen) {
+                document.body.classList.add('zen-mode');
+                document.getElementById('mantra-toggle').classList.add('collapsed');
+                if(document.getElementById('zenModeCheckbox')) document.getElementById('zenModeCheckbox').checked = true;
+            }
+            if (ui.mode === 'orb' || ui.mode === 'hud') {
+                els.card.style.transition = 'none'; 
+                if (ui.mode === 'orb') {
+                    if(ui.left) els.card.style.left = ui.left;
+                    if(ui.top) els.card.style.top = ui.top;
+                    window.setMode('orb', true);
+                } else {
+                    window.setMode('hud', true);
+                }
+                setTimeout(() => els.card.style.transition = '', 200);
+            }
+        } catch(e) { console.error("UI Load Error", e); }
+    }
+
+    function saveData() {
+      const payload = { keys: STATE.keys, user: STATE.user };
+      if (SESSION_PASSWORD) {
+        CRYPTO.encrypt(payload, SESSION_PASSWORD).then(enc => {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({ isEncrypted: true, data: enc }));
+          STATE.isEncrypted = true;
+          STATE.encryptedData = enc;
+          updateSecurityUI();
+        });
+      } else {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ isEncrypted: false, data: payload }));
+      }
+    }
+
+    async function loadData() {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (parsed.isEncrypted) {
+        STATE.isEncrypted = true;
+        STATE.encryptedData = parsed.data;
+        updateSecurityUI();
+      } else {
+        STATE.keys = parsed.data.keys || [];
+        STATE.user = parsed.data.user || 'Convidado';
+        
+        const active = STATE.keys.find(k=>k.active);
+        if(active && active.token) {
+           localStorage.setItem('di_apiKey', active.token);
+           if(typeof apiKey !== 'undefined') apiKey = active.token;
+        }
+        
+        if(STATE.user !== 'Convidado') {
+           localStorage.setItem('di_userName', STATE.user);
+           if(typeof userName !== 'undefined') userName = STATE.user;
+           if(document.getElementById('userNameInput')) document.getElementById('userNameInput').value = STATE.user;
+           if(document.getElementById('inputUser')) document.getElementById('inputUser').value = STATE.user;
+        }
+
+        updateInterface(STATE.user);
+        renderKeysList();
+      }
+    }
+
+    const hashStr = s => { let h=0xdeadbeef; for(let i=0;i<s.length;i++){h=Math.imul(h^s.charCodeAt(i),2654435761);} return (h^h>>>16)>>>0; };
+    const createSvg = (id,sz) => `<svg viewBox="0 0 100 100" width="${sz}" height="${sz}"><defs><linearGradient id="g${id}"><stop offset="0%" stop-color="#00f2ff"/><stop offset="100%" stop-color="#bd00ff"/></linearGradient></defs><circle cx="50" cy="50" r="48" fill="#080b12" stroke="rgba(255,255,255,0.1)"/><circle cx="50" cy="50" r="20" fill="url(#g${id})" opacity="0.9"/></svg>`;
+    const createMiniSvg = (name,sz=30) => {
+      const s = hashStr(name||'D'); const h1=s%360; const h2=(s*37)%360;
+      const grad = `<linearGradient id="gm${s}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="hsl(${h1},90%,50%)"/><stop offset="1" stop-color="hsl(${h2},90%,50%)"/></linearGradient>`;
+      return `<svg width="${sz}" height="${sz}" viewBox="0 0 32 32"><defs>${grad}</defs><rect width="32" height="32" rx="8" fill="#0a1016"/><circle cx="16" cy="16" r="6" fill="url(#gm${s})"/></svg>`;
+    };
+
+    function updateInterface(name){
+      const safe = name || 'Convidado';
+      els.lblName.innerText = safe;
+      els.input.value = safe;
+      const activeKey = STATE.keys.find(k=>k.active);
+      els.smallIdent.innerText = activeKey ? activeKey.name : '--';
+      els.actBadge.innerText = activeKey ? `key:${activeKey.name}` : 'v:--';
+      els.smallMiniAvatar.innerHTML = createMiniSvg(safe);
+      els.actMiniAvatar.innerHTML = createMiniSvg(safe,36);
+      els.actName.innerText = safe;
+      els.avatarTgt.innerHTML = createSvg('Main',64);
+      const phrases = ["Foco estável.","Ritmo criativo.","Percepção sutil."];
+      els.smallText.innerText = activeKey ? `${activeKey.name} [ATIVO]` : (safe==='Convidado'?'Aguardando...':`${safe} · ${phrases[safe.length%phrases.length]}`);
+      const line = `+${'-'.repeat(safe.length+4)}+`;
+      els.actPre.innerText = `${line}\n| ${safe.toUpperCase()} |\n${line}\nID: ${hashStr(safe).toString(16)}`;
+
+      const tiUser = document.getElementById('displayUser');
+      if(tiUser) tiUser.innerText = 'User: ' + safe;
+    }
+
+    function updateSecurityUI() {
+      if (SESSION_PASSWORD) {
+        els.securityStatus.innerText = "COFRE DESTRANCADO"; els.securityStatus.style.color = "var(--neon-success)";
+        els.vaultStatusText.innerText = "Cofre Protegido (Destrancado)"; els.lockVaultBtn.innerText = "TRANCAR";
+      } else if (STATE.isEncrypted) {
+        els.securityStatus.innerText = "CRIPTOGRAFADO"; els.securityStatus.style.color = "var(--neon-gold)";
+        els.vaultStatusText.innerText = "Cofre Trancado"; els.lockVaultBtn.innerText = "REDEFINIR";
+      } else {
+        els.securityStatus.innerText = "SEM PROTEÇÃO"; els.securityStatus.style.color = "rgba(255,255,255,0.5)";
+        els.vaultStatusText.innerText = "Cofre Aberto (Sem senha)"; els.lockVaultBtn.innerText = "CRIAR SENHA";
+      }
+    }
+
+    function renderKeysList(){
+      els.keyList.innerHTML = '';
+      if(STATE.keys.length===0){ els.keyList.innerHTML = '<div style="color:rgba(255,255,255,0.3);text-align:center;padding:20px">Nenhuma chave armazenada.</div>'; return; }
+      STATE.keys.forEach(k=>{
+        const div = document.createElement('div');
+        div.className = `key-item ${k.active?'active-item':''}`;
+        const typeInfo = k.webhook ? '<span style="color:var(--neon-purple)">WEBHOOK</span>' : 'API KEY';
+        div.innerHTML = `
+          <div class="meta"><div style="font-weight:700;font-size:0.9rem">${escapeHtml(k.name)}</div><div style="font-size:0.75rem;color:rgba(255,255,255,0.5)">${typeInfo}</div></div>
+          <div class="actions">
+            ${!k.active ? `<button class="small-btn" onclick="setActiveKey('${k.id}')">ATIVAR</button>` : `<span style="font-size:0.7rem;font-weight:700;color:var(--neon-cyan);margin-right:10px">ATIVA</span>`}
+            <button class="small-btn danger" onclick="removeKey('${k.id}')"><i data-lucide="trash-2" style="width:14px"></i></button>
+          </div>`;
+        els.keyList.appendChild(div);
+      });
+      lucide.createIcons();
+    }
+
+    function addKey() {
+      const name = els.keyName.value.trim();
+      const token = els.keyToken.value.trim();
+      const webhook = els.keyWebhook.value.trim();
+      if(!name){ showToaster('Nome obrigatório','error'); return; }
+      const newKey = { id: Date.now().toString(36), name, token, webhook, active: STATE.keys.length===0 };
+      STATE.keys.push(newKey);
+      if(newKey.active && newKey.token) {
+        localStorage.setItem('di_apiKey', newKey.token);
+        if(typeof apiKey !== 'undefined') apiKey = newKey.token;
+      }
+      saveData(); renderKeysList(); updateInterface(STATE.user);
+      els.keyName.value=''; els.keyToken.value=''; els.keyWebhook.value='';
+      showToaster('Chave adicionada!', 'success');
+    }
+
+    window.removeKey = (id) => {
+      if(confirm('Remover chave permanentemente?')){
+        STATE.keys = STATE.keys.filter(k=>k.id!==id);
+        saveData(); renderKeysList(); updateInterface(STATE.user);
+      }
+    };
+
+    window.setActiveKey = (id) => {
+      let activatedToken = null;
+      STATE.keys.forEach(k=> {
+        k.active = (k.id===id);
+        if(k.active) activatedToken = k.token;
+      });
+      if(activatedToken) {
+        localStorage.setItem('di_apiKey', activatedToken);
+        if(typeof apiKey !== 'undefined') apiKey = activatedToken;
+        if(document.getElementById('apiKeyInput')) document.getElementById('apiKeyInput').value = activatedToken;
+        showToaster('Chave sincronizada com o Chat.', 'success');
+      }
+      saveData(); renderKeysList(); updateInterface(STATE.user);
+    };
+
+    // --- VAULT EVENTS ---
+    els.testWebhookBtn.addEventListener('click', async () => { showToaster('Ping enviado (simulado)','success'); });
+    function openManager() {
+      if (STATE.isEncrypted && !SESSION_PASSWORD) { els.vaultModal.style.display='flex'; els.vaultPass.focus(); } 
+      else { els.keysModal.style.display='flex'; }
+    }
+    els.vaultUnlock.addEventListener('click', async () => {
+      const pass = els.vaultPass.value;
+      try {
+        const decrypted = await CRYPTO.decrypt(STATE.encryptedData, pass);
+        SESSION_PASSWORD = pass; STATE.keys = decrypted.keys; STATE.user = decrypted.user;
+        const active = STATE.keys.find(k=>k.active);
+        if(active && active.token) { localStorage.setItem('di_apiKey', active.token); if(typeof apiKey !== 'undefined') apiKey = active.token; }
+        if(STATE.user) { localStorage.setItem('di_userName', STATE.user); if(typeof userName !== 'undefined') userName = STATE.user; }
+        els.vaultModal.style.display='none'; els.keysModal.style.display='flex'; els.vaultPass.value='';
+        renderKeysList(); updateSecurityUI(); showToaster('Cofre destrancado.', 'success');
+      } catch(e) { showToaster('Senha incorreta.', 'error'); }
+    });
+    els.lockVaultBtn.addEventListener('click', () => {
+       if (!SESSION_PASSWORD && !STATE.isEncrypted) {
+         const newPass = prompt("Defina uma senha para o Cofre:");
+         if(newPass) { SESSION_PASSWORD=newPass; saveData(); showToaster("Cofre trancado.", 'success'); }
+       } else if (SESSION_PASSWORD) {
+         SESSION_PASSWORD=null; els.keysModal.style.display='none'; showToaster("Sessão do cofre encerrada.", 'success');
+       } else {
+         showToaster("Cofre já criptografado. Desbloqueie para redefinir.", 'error');
+       }
+       updateSecurityUI();
+    });
+    els.vaultCancel.addEventListener('click', ()=> els.vaultModal.style.display='none');
+    els.closeKeysBtn.addEventListener('click', ()=> els.keysModal.style.display='none');
+    els.addKeyBtn.addEventListener('click', addKey);
+
+    // --- CINEMATIC GESTURES & MODES (REFINED V7) ---
+
+    let state = {
+        isOrb: false,
+        isHud: false,
+        isDragging: false,
+        timer: null,
+        startX: 0,
+        startY: 0,
+        dragOffsetX: 0,
+        dragOffsetY: 0,
+        pointerId: null
+    };
+
+    const HUD_SNAP_THRESHOLD = 60; // Distância do topo para snapar
+    const SWIPE_DOWN_THRESHOLD = 80; // Distância para puxar HUD
+    const LONG_PRESS_MS = 350; // Tempo para virar Orb via long press
+
+    // Passive: false para permitir preventDefault() se necessário
+    els.card.addEventListener('pointerdown', handleStart, { passive: false });
+    window.addEventListener('pointermove', handleMove, { passive: false });
+    window.addEventListener('pointerup', handleEnd, { passive: false });
+
+    // Opening Configs
+    els.avatarTgt.addEventListener('click', (e)=>{ if(!state.isOrb && !state.isHud) openManager(); });
+    els.orbMenuTrigger.addEventListener('click', (e)=>{ e.stopPropagation(); window.setMode('card'); toggleSection('systemCard', true); });
+    els.hudMenuBtn.addEventListener('click', (e)=>{ e.stopPropagation(); window.setMode('card'); toggleSection('systemCard', true); });
+    
+    // Open Config from Header click in HUD Mode
+    els.header.addEventListener('click', (e) => {
+        if(state.isHud && !state.isDragging && !e.target.closest('.hud-menu-btn')) {
+             window.setMode('card');
+             toggleSection('systemCard', true);
+        }
+    });
+
+    els.card.addEventListener('contextmenu', (e)=>{
+        if(state.isOrb || state.isHud) { e.preventDefault(); window.setMode('card'); }
+    });
+
+    function handleStart(e) {
+      // Ignorar interações internas (inputs, textareas)
+      if(e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || (e.target.tagName === 'BUTTON' && !e.target.closest('.orb-menu-trigger'))) return;
+      
+      // No modo Card, só permitir arrastar pelo Header
+      if(!state.isOrb && !state.isHud && !els.header.contains(e.target)) return;
+
+      state.startX = e.clientX;
+      state.startY = e.clientY;
+      state.pointerId = e.pointerId;
+
+      // Se já for Orb/Hud -> Iniciar arraste imediato
+      if(state.isOrb || state.isHud) {
+          state.isDragging = true;
+          try { els.card.setPointerCapture(e.pointerId); } catch(err){}
+          
+          const rect = els.card.getBoundingClientRect();
+          state.dragOffsetX = e.clientX - rect.left;
+          state.dragOffsetY = e.clientY - rect.top;
+          els.card.style.transition = 'none';
+          return;
+      }
+
+      // Se for Card: Iniciar timer de Long Press, mas monitorar movimento para "swipe up"
+      state.timer = setTimeout(() => {
+          transmuteToOrb(e);
+          saveUIState();
+      }, LONG_PRESS_MS);
+    }
+    
+    function handleMove(e) {
+      // Detecção de Swipe Up / Side Drag no modo Card antes do timer acabar
+      if(!state.isOrb && !state.isHud && state.timer) {
+          const dx = e.clientX - state.startX;
+          const dy = e.clientY - state.startY;
+          const dist = Math.hypot(dx, dy);
+          
+          // Se moveu o suficiente (swipe), cancelar timer e virar Orb imediatamente
+          // Lógica: Se arrastar pra cima (dy < -10) ou muito pros lados (dx > 18)
+          if (dist > 12 && (dy < -10 || Math.abs(dx) > 18)) { 
+              clearTimeout(state.timer); state.timer = null;
+              
+              // Transmutar e continuar arrastando
+              transmuteToOrb(e); 
+              
+              // Recalcular offset para o drag não "pular"
+              const rect = els.card.getBoundingClientRect();
+              state.dragOffsetX = e.clientX - rect.left;
+              state.dragOffsetY = e.clientY - rect.top;
+              try { els.card.setPointerCapture(e.pointerId); } catch(err){}
+              els.card.style.transition = 'none';
+          }
+          
+          // Se foi um movimento pequeno (jitter), talvez cancelar se for scroll? 
+          // Deixamos o browser decidir o scroll se não for drag.
+      }
+    
+      if(!state.isDragging) return;
+
+      e.preventDefault(); // Prevenir scroll da página enquanto arrasta o Orb/HUD
+
+      if(state.isOrb) {
+          const x = e.clientX - state.dragOffsetX;
+          const y = e.clientY - state.dragOffsetY;
+          els.card.style.left = `${x}px`;
+          els.card.style.top = `${y}px`;
+          
+          if(y < HUD_SNAP_THRESHOLD) els.snapZone.classList.add('active');
+          else els.snapZone.classList.remove('active');
+
+      } else if (state.isHud) {
+          const deltaY = e.clientY - state.startY;
+          if(deltaY > 0) {
+             els.card.style.transform = `translateX(-50%) translateY(${deltaY * 0.4}px)`;
+             if(deltaY > SWIPE_DOWN_THRESHOLD) els.snapZone.classList.add('active');
+             else els.snapZone.classList.remove('active');
+          }
+      }
+    }
+    
+    function handleEnd(e) {
+      if(state.timer){ clearTimeout(state.timer); state.timer=null; }
+      
+      if(state.isDragging) {
+          state.isDragging = false;
+          try { els.card.releasePointerCapture && els.card.releasePointerCapture(state.pointerId); } catch(err){}
+          els.card.style.transition = ''; 
+          els.snapZone.classList.remove('active');
+
+          if(state.isOrb) {
+              const rect = els.card.getBoundingClientRect();
+              if(rect.top < HUD_SNAP_THRESHOLD) {
+                  setMode('hud');
+              } else {
+                  saveUIState();
+              }
+          } else if (state.isHud) {
+              const deltaY = e.clientY - state.startY;
+              if (deltaY > SWIPE_DOWN_THRESHOLD) {
+                  const x = e.clientX - 34; 
+                  const y = e.clientY - 10;
+                  els.card.style.left = `${x}px`;
+                  els.card.style.top = `${y}px`;
+                  setMode('orb');
+              } else {
+                  els.card.style.transform = `translateX(-50%) translateY(0)`;
+              }
+          }
+      } else {
+          // Clique simples no header do Card (Toggle)
+          if(!state.isOrb && !state.isHud && els.header.contains(e.target)) {
+               toggleCardState();
+          }
+      }
+      state.pointerId = null;
+    }
+    
+    function transmuteToOrb(eOrX) {
+      // Aceita evento ou coordenadas, mas preferimos evento para capturar pointer
+      let x, y, ev;
+      if(eOrX && eOrX.clientX !== undefined) { ev = eOrX; x = ev.clientX; y = ev.clientY; }
+      else { return; } // Precisa de evento para fluidez total
+
+      if(navigator.vibrate) navigator.vibrate(40);
+      els.card.classList.add('orb','closed'); 
+      els.card.classList.remove('content-visible');
+      
+      // Centralizar visualmente (será sobrescrito pelo drag move imediato)
+      els.card.style.left = (x - 34) + 'px'; 
+      els.card.style.top = (y - 34) + 'px';
+      
+      state.isOrb=true; state.isHud=false;
+      
+      // Iniciar drag imediatamente
+      state.isDragging = true;
+      if(ev && ev.pointerId) {
+          state.pointerId = ev.pointerId;
+          try { els.card.setPointerCapture(ev.pointerId); } catch(e){}
+          const rect = els.card.getBoundingClientRect();
+          state.dragOffsetX = x - rect.left;
+          state.dragOffsetY = y - rect.top;
+      }
+
+      updateModeButtons('orb');
+    }
+
+    function revertToCard() {
+      state.isOrb=false; state.isHud=false;
+      els.card.style.transition='all 0.5s var(--ease-smooth)'; 
+      els.card.style.left=''; els.card.style.top=''; 
+      els.card.style.width=''; els.card.style.height=''; 
+      els.card.style.transform='';
+      els.card.classList.remove('orb','hud','closed'); 
+      setTimeout(()=>els.card.classList.add('content-visible'),300);
+    }
+    
+    window.setMode = (mode, isInitialLoad = false) => {
+        updateModeButtons(mode);
+
+        if(mode === 'card') {
+            revertToCard();
+        } else if (mode === 'orb') {
+            state.isOrb = true; state.isHud = false;
+            els.card.classList.add('orb', 'closed');
+            els.card.classList.remove('hud', 'content-visible');
+            els.card.style.transform = 'none';
+        } else if (mode === 'hud') {
+            state.isHud = true; state.isOrb = false;
+            els.card.classList.add('hud', 'closed'); 
+            els.card.classList.remove('orb', 'content-visible');
+            els.card.style.top = ''; 
+            els.card.style.left = ''; 
+            els.card.style.transform = '';
+        }
+        
+        if(!isInitialLoad) saveUIState();
+    };
+
+    function updateModeButtons(mode) {
+        [els.btnModeCard, els.btnModeOrb, els.btnModeHud].forEach(b=>b.classList.remove('active-mode'));
+        if(mode==='card') els.btnModeCard.classList.add('active-mode');
+        if(mode==='orb') els.btnModeOrb.classList.add('active-mode');
+        if(mode==='hud') els.btnModeHud.classList.add('active-mode');
+    }
+
+    function toggleCardState() {
+      if(els.card.classList.contains('animating')) return;
+      const isClosed=els.card.classList.contains('closed'); els.card.classList.add('animating');
+      if(isClosed) { els.card.classList.remove('closed'); els.card.animate([{transform:'scale(0.95)',opacity:0.8},{transform:'scale(1)',opacity:1}],{duration:400}).onfinish=()=>{els.card.classList.remove('animating');els.card.classList.add('content-visible');} }
+      else { els.card.classList.remove('content-visible'); els.card.animate([{transform:'translateY(0)',opacity:1},{transform:'translateY(10px)',opacity:1}],{duration:200}).onfinish=()=>{els.card.classList.add('closed');els.card.classList.remove('animating');} }
+    }
+    
+    // Helpers
+    function escapeHtml(s){ return s ? s.replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])) : ''; }
+    function showToaster(txt,type='default'){ const t=document.createElement('div'); t.className=`toaster ${type}`; t.innerText=txt; document.getElementById('toasterWrap').appendChild(t); setTimeout(()=>t.classList.add('show'),10); setTimeout(()=>{t.classList.remove('show');setTimeout(()=>t.remove(),300)},2500); }
+    function toggleSection(id, forceOpen = false){ 
+        const el = document.getElementById(id);
+        const h = el.classList.contains('activation-hidden'); 
+        if(forceOpen && !h) return; // Already open
+        el.classList.toggle('activation-hidden', !forceOpen && !h); 
+        el.classList.toggle('activation-open', forceOpen || h); 
+    }
+    window.toggleActivation = () => toggleSection('activationCard');
+
+    // Logic Init
+    els.input.addEventListener('input', (e)=>{ 
+       STATE.user=e.target.value; 
+       localStorage.setItem('di_userName', STATE.user); 
+       if(typeof userName !== 'undefined') userName=STATE.user;
+       updateInterface(e.target.value); saveData(); 
+    });
+    
+    // INITIAL LOAD
+    setTimeout(()=>{ 
+        els.card.classList.add('active'); 
+        els.avatarTgt.classList.add('shown'); 
+        loadData(); 
+        loadUIState(); 
+        updateChatUI();
+    }, 100);
+    setInterval(()=>{ els.clock.innerText = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}); },1000);
+  </script>
+
+  <script>
+    const API_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
+    const TEMPERATURE = 0.2;
+
+    let training = localStorage.getItem('di_trainingText') || '';
+    let trainingFileName = localStorage.getItem('di_trainingFileName') || '';
+    let assistantEnabled = (localStorage.getItem('di_assistantEnabled') === '1');
+    let trainingActive = (localStorage.getItem('di_trainingActive') !== '0'); 
+    let conversation = [];
+    let pages = [], currentPage = 0, autoAdvance = true;
+
+    // Configs
+    let apiKey = localStorage.getItem('di_apiKey') || '';
+    let modelName = localStorage.getItem('di_modelName') || 'nvidia/nemotron-3-nano-30b-a3b:free';
+    let userName = localStorage.getItem('di_userName') || '';
+    let infodoseName = localStorage.getItem('di_infodoseName') || '';
+    const CRYSTAL_KEY = 'di_cristalizados';
+
+// === Model Selector ===
+const modelSelect = document.getElementById('modelSelect');
+
+// carregar modelo salvo
+const savedModel = localStorage.getItem('di_modelName');
+if (savedModel) {
+  modelName = savedModel;
+  if (modelSelect) modelSelect.value = savedModel;
+}
+
+// escutar mudança
+modelSelect?.addEventListener('change', e => {
+  modelName = e.target.value;
+  localStorage.setItem('di_modelName', modelName);
+  showToaster?.(`Modelo ativo: ${modelName}`, 'default');
+});
+
+    const createEl = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html) e.innerHTML = html; return e; };
+
+    function updateChatUI() {
+       const uEl = document.getElementById('displayUser');
+       const iEl = document.getElementById('displayInfodose');
+       if(uEl) uEl.innerText = 'User: ' + (userName || '—');
+       if(iEl) iEl.innerText = 'Infodose: ' + (infodoseName || '—');
+       
+       // Settings Inputs
+       if(document.getElementById('apiKeyInput')) document.getElementById('apiKeyInput').value = apiKey;
+       if(document.getElementById('modelInput')) document.getElementById('modelInput').value = modelName;
+       if(document.getElementById('infodoseNameInput')) document.getElementById('infodoseNameInput').value = infodoseName;
+       
+       // Toggles
+       if(document.getElementById('assistantActiveCheckbox')) document.getElementById('assistantActiveCheckbox').checked = assistantEnabled;
+       if(document.getElementById('trainingActiveCheckbox')) document.getElementById('trainingActiveCheckbox').checked = trainingActive;
+       
+       // Update Chat Toggle Button Visual
+       updateToggleBtnVisual();
+    }
+    
+    function updateToggleBtnVisual() {
+        const btn = els.toggleBtn;
+        if(assistantEnabled) {
+            btn.classList.add('active');
+            btn.title = "Assistant ON";
+        } else {
+            btn.classList.remove('active');
+            btn.title = "Assistant OFF";
+        }
+    }
+
+    // TTS Logic ... (Same as before)
+    const speakText = (txt, onend)=> {
+      if (!txt) { if (onend) onend(); return; }
+      const u = new SpeechSynthesisUtterance(txt);
+      u.lang = 'pt-BR'; u.rate = 0.99; u.pitch = 1.1;
+      if (window._vozes) u.voice = window._vozes.find(v=>v.lang==='pt-BR') || window._vozes[0];
+      if (onend) u.onend = onend;
+      speechSynthesis.speak(u);
+    };
+
+   /* === PATCH JS: substituir splitBlocks + renderPaginatedResponse + speakPage/changePage/showLoading === */
+
+/* simples parser markdown leve (bold, italic, inline code, links, codeblocks, lists) */
+function mdToHtml(md){
+  if(!md) return '';
+  // code block ``` ``` 
+  md = md.replace(/```([^`]*)```/gs, function(_, code){ return '<pre><code>' + escapeHtml(code) + '</code></pre>'; });
+  // inline code `code`
+  md = md.replace(/`([^`]+)`/g, function(_, c){ return '<code>' + escapeHtml(c) + '</code>'; });
+  // links [text](url)
+  md = md.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+  // bold **text**
+  md = md.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  // italic *text*
+  md = md.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+  // unordered lists (- or *)
+  md = md.replace(/(^|\n)[\-\*]\s+(.+?)(?=\n|$)/g, function(_, pre, item){ return pre + '<li>' + item + '</li>'; });
+  md = md.replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>');
+  // paragraphs: remaining single newlines -> <br>, double newlines -> separate paragraphs
+  const paras = md.split(/\n{2,}/).map(p => p.trim()).filter(Boolean);
+  return paras.map(p => '<p>' + p.replace(/\n/g,'<br>') + '</p>').join('');
+}
+
+/* divide texto em grupos de 3 blocos (fallback para sentenças) */
+const splitBlocks = text => {
+  if (!text || !text.trim()) return [['Sem conteúdo.','','']];
+  let paras = text.split(/\n\s*\n/).map(p=>p.trim()).filter(Boolean);
+  // se muitos pequenos parágrafos e não múltiplo de 3, quebra por sentenças
+  if (paras.length < 3 || paras.length % 3 !== 0) {
+    const sens = text.match(/[^\.!\?]+[\.!\?]+/g) || [text];
+    paras = sens.map(s=>s.trim()).filter(Boolean);
+  }
+  const groups = [];
+  for (let i=0;i<paras.length;i+=3) groups.push(paras.slice(i,i+3));
+  return groups;
+};
+
+const renderPaginatedResponse = text => {
+  // cancel TTS ongoing
+  try { speechSynthesis.cancel(); } catch(e){}
+  autoAdvance = true;
+  const respEl = document.getElementById('response');
+  // remove previous generated pages but keep the controls and initial page if present
+  Array.from(respEl.querySelectorAll('.page')).forEach(p => {
+    if (!p.classList.contains('initial')) p.remove();
+  });
+  pages = [];
+  const groups = splitBlocks(text);
+  const controls = respEl.querySelector('.response-controls');
+  const titles = ['🎁 Recompensa Inicial','👁️ Exploração e Curiosidade','⚡ Antecipação Vibracional'];
+
+  groups.forEach((tris, gi) => {
+    const page = createEl('div', gi===0 ? 'page active' : 'page');
+    // content container
+    tris.forEach((body, j) => {
+      const cls = j===0 ? 'intro' : j===1 ? 'middle' : 'ending';
+      // convert markdown-lite to html inside block-body
+      const htmlBody = mdToHtml(body);
+      const b = createEl('div','response-block '+cls, `<h3>${titles[j]}</h3><div class="block-body">${htmlBody}</div>`);
+      const meta = createEl('div','meta');
+      const crystalBtn = createEl('button','crystal-btn','✶');
+      crystalBtn.title = 'Cristalizar';
+      crystalBtn.addEventListener('click', (ev)=>{
+        ev.stopPropagation();
+        cristalizar({ title: titles[j], content: body });
+        crystalBtn.innerText = '✓'; setTimeout(()=> crystalBtn.innerText = '✶', 1200);
+      });
+      meta.appendChild(crystalBtn);
+      b.appendChild(meta);
+
+      // state & click behavior (TTS / expand -> trigger AI)
+      b.dataset.state = '';
+      b.addEventListener('click', (ev) => {
+        // prevent inner meta buttons from toggling
+        if (ev.target.closest('.meta')) return;
+        const alreadySpoken = b.dataset.state === 'spoken';
+        if (!alreadySpoken) {
+          try { speechSynthesis.cancel(); } catch(e){}
+          // speak only visible text (collapse tags removed)
+          const textToSpeak = b.querySelector('.block-body') ? b.querySelector('.block-body').innerText : body;
+          speakText(textToSpeak);
+          b.classList.add('clicked'); b.dataset.state = 'spoken';
+        } else {
+          // expand and call AI
+          b.classList.add('expanded'); b.dataset.state = '';
+          if (!assistantEnabled) {
+            assistantEnabled = true; localStorage.setItem('di_assistantEnabled','1');
+            updateToggleBtnVisual();
+            if (training && trainingActive) conversation.unshift({ role:'system', content: training });
+          }
+          const blockText = `${titles[j]}\n\n${body}`;
+          showLoading('Pulso em Expansão...');
+          speakText('Pulso em Expansão...');
+          conversation.push({ role:'user', content: blockText });
+          callAI();
+        }
+      });
+
+      page.appendChild(b);
+    });
+
+    page.appendChild(createEl('p','footer-text',`<em>Do seu jeito. <strong>Sempre</strong> único. <strong>Sempre</strong> seu.</em>`));
+    // insert new page before controls (so controls always at bottom)
+    if (controls && controls.parentNode) respEl.insertBefore(page, controls);
+    else respEl.appendChild(page);
+    pages.push(page);
+  });
+
+  currentPage = 0;
+  const pi = document.getElementById('pageIndicator');
+  if (pi) pi.textContent = `1 / ${pages.length}`;
+  // start speaking first page
+  speakPage(0);
+};
+
+const speakPage = i => {
+  const page = pages[i]; if (!page) return;
+  const body = Array.from(page.querySelectorAll('.block-body')).map(n => n.innerText).join(' ');
+  speakText(body, () => {
+    if (!autoAdvance) return;
+    if (i < pages.length - 1) { changePage(1); speakPage(i+1); } else { speakText('Sempre único, sempre seu.'); }
+  });
+};
+
+const changePage = offset => {
+  const np = currentPage + offset; if (np<0 || np>=pages.length) return;
+  if (pages[currentPage]) pages[currentPage].classList.remove('active');
+  if (pages[np]) pages[np].classList.add('active');
+  currentPage = np;
+  const pi = document.getElementById('pageIndicator');
+  if (pi) pi.textContent = `${currentPage+1} / ${pages.length}`;
+};
+
+const showLoading = msg => {
+  const respEl = document.getElementById('response');
+  const controls = respEl.querySelector('.response-controls');
+  respEl.querySelectorAll('.page').forEach(p => { if(!p.classList.contains('initial')) p.remove(); });
+  const page = createEl('div','page active'); page.appendChild(createEl('p','footer-text',msg));
+  if (controls && controls.parentNode) respEl.insertBefore(page, controls);
+  else respEl.appendChild(page);
+  pages = [page];
+  currentPage = 0;
+  const pi = document.getElementById('pageIndicator');
+  if (pi) pi.textContent = '…';
+};
+
+    async function callAI() {
+      apiKey = localStorage.getItem('di_apiKey') || apiKey;
+
+      if (!apiKey) {
+        alert('Nenhuma API Key ativa! Ative uma chave no Card (Cofre) ou no Painel.');
+        return;
+      }
+      const bodyObj = { model: modelName, messages: conversation.slice(), temperature: TEMPERATURE };
+      const messagesToSend = [];
+      if (assistantEnabled && trainingActive && training) messagesToSend.push({ role:'system', content: training });
+      conversation.forEach(m => { if (m.role !== 'system') messagesToSend.push(m); });
+      bodyObj.messages = messagesToSend;
+
+      try {
+        const resp = await fetch(API_ENDPOINT, {
+          method:'POST', headers:{ 'Authorization':`Bearer ${apiKey}`, 'Content-Type':'application/json' },
+          body: JSON.stringify(bodyObj)
+        });
+        if (!resp.ok) throw new Error('Erro API: ' + resp.status);
+        const data = await resp.json();
+        const answer = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) ? data.choices[0].message.content.trim() : 'Resposta vazia';
+        conversation.push({ role:'assistant', content: answer });
+        renderPaginatedResponse(answer);
+      } catch (err) {
+        console.error(err);
+        const errorMsg = 'Falha na conexão. Verifique se a chave está ativa no Card.';
+        conversation.push({ role:'assistant', content: errorMsg });
+        renderPaginatedResponse(errorMsg);
+      }
+    }
+
+    async function sendMessage(){
+      const respEl = document.getElementById('response');
+      const initPage = respEl.querySelector('.page.initial');
+      if (initPage) initPage.remove();
+      const input = document.getElementById('userInput');
+      const raw = input.value.trim(); if (!raw) return;
+      input.value = '';
+      speechSynthesis.cancel(); speakText('');
+
+      if (raw.toLowerCase().includes('oi dual')) {
+        assistantEnabled = true; localStorage.setItem('di_assistantEnabled','1');
+        updateToggleBtnVisual();
+        showLoading('Conectando Dual Infodose...');
+        if (training && trainingActive) conversation.unshift({ role:'system', content: training });
+      } else { showLoading('Processando...'); }
+      conversation.push({ role:'user', content: raw });
+      callAI();
+    }
+    
+    // Quick Toggle Action
+    els.toggleBtn.addEventListener('click', () => {
+        assistantEnabled = !assistantEnabled;
+        localStorage.setItem('di_assistantEnabled', assistantEnabled ? '1' : '0');
+        showToaster(assistantEnabled ? 'Assistant ON (Fetch Ativo)' : 'Assistant OFF (Fetch Desativado)', assistantEnabled ? 'success' : 'default');
+        updateChatUI();
+    });
+
+    function cristalizar({ title, content }) {
+      const list = JSON.parse(localStorage.getItem(CRYSTAL_KEY) || '[]');
+      list.unshift({ id: Date.now(), title, content, user: userName, infodose: infodoseName, at: new Date().toISOString() });
+      localStorage.setItem(CRYSTAL_KEY, JSON.stringify(list)); refreshCrystalList();
+    }
+    function refreshCrystalList() {
+      const list = JSON.parse(localStorage.getItem(CRYSTAL_KEY) || '[]');
+      const el = document.getElementById('crystalList'); el.innerHTML = '';
+      if (!list.length) { el.innerHTML = '<div class="small">Vazio.</div>'; return; }
+      list.forEach(it => {
+        const row = createEl('div','crystal-item');
+        const left = createEl('div','','<strong>'+it.title+'</strong><div class="small">'+(it.infodose||'')+'</div><div style="margin-top:4px;font-size:0.8em">'+it.content.slice(0,100)+'...</div>');
+        const actions = createEl('div','actions');
+        const copyBtn = createEl('button','btn btn-sec','Copy'); copyBtn.onclick=()=>navigator.clipboard.writeText(it.content);
+        const delBtn = createEl('button','btn btn-sec','Del'); delBtn.onclick=()=>{ 
+            const arr=JSON.parse(localStorage.getItem(CRYSTAL_KEY)||'[]'); 
+            localStorage.setItem(CRYSTAL_KEY, JSON.stringify(arr.filter(x=>x.id!==it.id))); refreshCrystalList(); 
+        };
+        actions.append(copyBtn, delBtn); row.append(left, actions); el.appendChild(row);
+      });
+    }
+
+    // --- SETUP CHAT UI EVENTS ---
+    document.addEventListener('DOMContentLoaded', async () => {
+      speechSynthesis.onvoiceschanged = () => { window._vozes = speechSynthesis.getVoices(); };
+
+      try {
+        particlesJS('particles-js',{ particles:{ number:{value:24},color:{value:['#0ff','#f0f']}, shape:{type:'circle'},opacity:{value:0.4},size:{value:2.4}, move:{enable:true,speed:1.5} }, retina_detect:true });
+      } catch(e) { console.warn('particlesJS init failed', e); }
+
+      document.getElementById('sendBtn').addEventListener('click', sendMessage);
+      document.getElementById('userInput').addEventListener('keypress', e => { if (e.key==='Enter') sendMessage(); });
+      document.querySelector('[data-action="prev"]').addEventListener('click', () => changePage(-1));
+      document.querySelector('[data-action="next"]').addEventListener('click', () => changePage(1));
+
+      document.getElementById('saveSystemBtn').addEventListener('click', () => {
+         infodoseName = document.getElementById('infodoseNameInput').value.trim();
+         assistantEnabled = document.getElementById('assistantActiveCheckbox').checked;
+         trainingActive = document.getElementById('trainingActiveCheckbox').checked;
+         
+         const newKey = document.getElementById('apiKeyInput').value.trim();
+         const newModel = document.getElementById('modelInput').value.trim();
+         
+         if(newKey) {
+             apiKey = newKey;
+             localStorage.setItem('di_apiKey', apiKey);
+             if(typeof STATE !== 'undefined') {
+                 const active = STATE.keys.find(k=>k.active);
+                 if(active) { active.token = newKey; saveData(); }
+             }
+         }
+         
+         modelName = newModel || modelName;
+         localStorage.setItem('di_modelName', modelName);
+
+         const zen = document.getElementById('zenModeCheckbox').checked;
+         if(zen) { 
+             document.body.classList.add('zen-mode');
+             document.getElementById('mantra-toggle').classList.add('collapsed');
+         } else {
+             document.body.classList.remove('zen-mode');
+             document.getElementById('mantra-toggle').classList.remove('collapsed');
+         }
+         saveUIState(); 
+
+         localStorage.setItem('di_infodoseName', infodoseName);
+         localStorage.setItem('di_assistantEnabled', assistantEnabled?'1':'0'); localStorage.setItem('di_trainingActive', trainingActive?'1':'0');
+         
+         updateChatUI();
+         toggleSection('systemCard', false);
+         showToaster('Configurações Salvas', 'success');
+      });
+
+      // Crystal
+      document.getElementById('crystalBtn').addEventListener('click', ()=>{ refreshCrystalList(); document.getElementById('crystalModal').classList.add('active'); });
+      document.getElementById('closeCrystal').addEventListener('click', ()=>document.getElementById('crystalModal').classList.remove('active'));
+      document.getElementById('exportAllCrystal').addEventListener('click', ()=>{
+          const list = JSON.parse(localStorage.getItem(CRYSTAL_KEY)||'[]');
+          if(!list.length) return alert('Nada.');
+          const b = new Blob([JSON.stringify(list,null,2)], {type:'application/json'});
+          const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download='crystals.json'; a.click();
+      });
+      document.getElementById('clearAllCrystal').addEventListener('click', ()=>{ localStorage.removeItem(CRYSTAL_KEY); refreshCrystalList(); });
+
+      updateChatUI();
+
+      // --- ADDED: missing button handlers ---
+      function getAllResponseText() {
+        const blocks = Array.from(document.querySelectorAll('.response-block p')).map(p=>p.innerText.trim()).filter(Boolean);
+        if(blocks.length) return blocks.join('\n\n');
+        const resp = document.getElementById('response');
+        return resp ? resp.innerText.trim() : '';
+      }
+      const copyBtn = document.querySelector('.control-btn.copy-button');
+      if (copyBtn) copyBtn.addEventListener('click', async () => {
+        try {
+          const text = getAllResponseText();
+          await navigator.clipboard.writeText(text);
+          showToaster('Texto copiado', 'success');
+        } catch (e) { showToaster('Falha ao copiar', 'error'); console.error(e); }
+      });
+      const pasteBtn = document.querySelector('.control-btn.paste-button');
+      if (pasteBtn) pasteBtn.addEventListener('click', async () => {
+        try {
+          const txt = await navigator.clipboard.readText();
+          const ui = document.getElementById('userInput');
+          if (ui) { ui.value = txt; ui.focus(); showToaster('Conteúdo colado no campo', 'success'); }
+        } catch (e) { showToaster('Falha ao colar (permissão negada?)', 'error'); console.error(e); }
+      });
+      const copyAct = document.getElementById('copyActBtn');
+      if (copyAct) copyAct.addEventListener('click', async () => {
+        try {
+          const txt = document.getElementById('actPre').innerText;
+          await navigator.clipboard.writeText(txt);
+          showToaster('Ativação copiada', 'success');
+        } catch(e){ showToaster('Erro ao copiar ativação', 'error'); console.error(e); }
+      });
+      const downloadAct = document.getElementById('downloadActBtn');
+      if (downloadAct) downloadAct.addEventListener('click', async () => {
+        try {
+          const node = document.getElementById('actPre');
+          const canvas = await html2canvas(node, { backgroundColor: null, scale: 2 });
+          canvas.toBlob(blob => {
+            const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'ativacao.png'; a.click();
+            URL.revokeObjectURL(a.href);
+          });
+        } catch(e){ showToaster('Erro ao gerar PNG', 'error'); console.error(e); }
+      });
+
+      // Training import/export
+      const trainingInput = document.getElementById('trainingUpload');
+      const exportTrainingBtn = document.getElementById('exportTrainingBtn');
+      const trainingNameEl = document.getElementById('trainingFileName');
+
+      if (trainingInput) {
+        trainingInput.addEventListener('change', async (ev) => {
+          const f = ev.target.files && ev.target.files[0];
+          if (!f) return;
+          const txt = await f.text();
+          training = txt;
+          trainingFileName = f.name;
+          localStorage.setItem('di_trainingText', training);
+          localStorage.setItem('di_trainingFileName', trainingFileName);
+          if (trainingNameEl) trainingNameEl.innerText = trainingFileName;
+          showToaster('Treinamento importado', 'success');
+        });
+      }
+      if (exportTrainingBtn) {
+        exportTrainingBtn.addEventListener('click', () => {
+          if (!training) { showToaster('Nenhum treinamento para exportar', 'error'); return; }
+          const b = new Blob([training], { type: 'text/plain' });
+          const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = (trainingFileName||'training.txt'); a.click();
+        });
+      }
+
+      // Keys export/import
+      const exportKeysBtn = document.getElementById('exportKeysBtn');
+      const importKeysBtn = document.getElementById('importKeysBtn');
+      const importFileInput = document.getElementById('importFileInput');
+
+      if (exportKeysBtn) exportKeysBtn.addEventListener('click', () => {
+        const b = new Blob([JSON.stringify(STATE.keys || [], null, 2)], { type: 'application/json' });
+        const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'keys.json'; a.click();
+      });
+      if (importKeysBtn && importFileInput) {
+        importKeysBtn.addEventListener('click', () => importFileInput.click());
+        importFileInput.addEventListener('change', async (ev) => {
+          const f = ev.target.files && ev.target.files[0];
+          if (!f) return;
+          try {
+            const txt = await f.text();
+            const parsed = JSON.parse(txt);
+            if (!Array.isArray(parsed)) throw new Error('Formato inválido');
+            STATE.keys = parsed;
+            saveData(); renderKeysList(); showToaster('Chaves importadas', 'success');
+          } catch (e) { showToaster('Erro ao importar chaves', 'error'); console.error(e); }
+        });
+      }
+
+    });
+
+    // Mantra
+    const mantraBtn = document.getElementById('mantra-toggle');
+    const mantraText = document.getElementById('mantra-text');
+    let mantraCollapsed = false;
+    mantraBtn.addEventListener('click', () => {
+      mantraCollapsed = !mantraCollapsed;
+      if (mantraCollapsed) {
+        mantraBtn.classList.add('collapsed'); document.body.classList.add('zen-mode');
+        mantraText.classList.add('fade-out'); setTimeout(()=>{ mantraText.innerHTML = 'USE · TRANSFORME · DEVOLVA'; mantraText.classList.remove('fade-out'); },300);
+      } else {
+        mantraBtn.classList.remove('collapsed'); document.body.classList.remove('zen-mode');
+        mantraText.classList.add('fade-out'); setTimeout(()=>{ mantraText.innerHTML = 'Do seu jeito. <strong>Sempre</strong> único. <strong>Sempre</strong> seu.'; mantraText.classList.remove('fade-out'); },300);
+      }
+    });
+  </script>
+
+<script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js')
+        .then(() => console.log('Service Worker Registered'))
+        .catch(e=>console.warn('SW register failed',e));
+    }
+  </script>
+
+
+
+
+
+
+<div class="wrap">
+  <div class="content">
+    <iframe id="frame" src="./infodose-iai.html" title="Dual Infodose frame"></iframe>
+  </div>
+
+  <div class="symbol-bar" aria-hidden="">
+            <button class="symbol-button" data-url="https://kodux78k.github.io/oiDual-starT/infodose-iai.html">⌂</button>
+    <button class="symbol-button" data-url="https://kodux78k.github.io/oiDual-Vivivi-1/">◊</button>
+    <button class="symbol-button" data-url="https://kodux78k.github.io/DualInfodose-VirgemHuB/index.html">○</button>
+
+
+  </div>
+
+<button class="lock-button" src="./index.html"></button>
+
+  <div class="controls" role="region" aria-label="Controles">
+    <input id="uploadHTML" type="file" accept=".html" style="display:none">
+    <button id="uploadComponentBtn" class="btn" title="Carregar HTML local">⧉</button>
+    <button id="remoteComponentBtn" class="btn" title="Abrir componente remoto"> ☍ </button>
+    <button id="toggleDecoderBtn" class="btn" title="Abrir decodificador">✦</button>
+  </div>
+
+  <div id="decoderBox" aria-hidden="true">
+    <div style="display:flex;gap:8px;align-items:center">
+      <input id="codeInput" placeholder="Selo (ex: DUAL)">
+      <button id="decodeBtn" class="btn">Abrir</button>
+      <button id="closeDecoder" class="btn">✖</button>
+    </div>
+  </div>
+
+  <div id="pulsos-container" aria-hidden="">
+    <div id="pulsos"></div>
+  </div>
+
+  <!-- <p class="footer">Do seu jeito. <strong>Sempre</strong> único. <strong>Sempre</strong> seu.</p>
+</div> --!>
+
+<!-- lightweight web component modal for remote/local pages -->
+<script>
+  class MyFrameLoader extends HTMLElement {
+    constructor(){
+      super();
+      this.attachShadow({mode:'open'});
+      this.shadowRoot.innerHTML = `
+        <style>
+          .overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:9999}
+          .box{width:92%;height:86%;background:#071017;border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
+          .top{display:flex;justify-content:flex-end;padding:8px}
+          button{background:transparent;border:0;color:#fff;font-size:18px;cursor:pointer;padding:6px}
+          iframe{flex:1;border:0}
+        </style>
+        <div class="overlay">
+          <div class="box">
+            <div class="top"><button class="close">✖</button></div>
+            <iframe></iframe>
+          </div>
+        </div>`;
+      this.iframe = this.shadowRoot.querySelector('iframe');
+      this.shadowRoot.querySelector('.close').onclick = ()=> this.remove();
+    }
+    set src(v){ this.iframe.src = v; }
+  }
+  customElements.define('my-frame-loader', MyFrameLoader);
+</script>
+
+<script>
+(function(){
+  const frame = document.getElementById('frame');
+  const uploadInput = document.getElementById('uploadHTML');
+  const uploadBtn = document.getElementById('uploadComponentBtn');
+  const remoteBtn = document.getElementById('remoteComponentBtn');
+  const toggleDecoderBtn = document.getElementById('toggleDecoderBtn');
+  const decoderBox = document.getElementById('decoderBox');
+  const decodeBtn = document.getElementById('decodeBtn');
+  const closeDecoder = document.getElementById('closeDecoder');
+  const codeInput = document.getElementById('codeInput');
+  const pulsos = document.getElementById('pulsos');
+
+  const CODE_MAP = {
+    "DUAL":"menu.html",
+    "kxt":"https://kodux78k.github.io/oiDual-78KxT-v9/",
+    "eye":"https://kodux78k.github.io/oiDual-EyE-v0/",
+    "KBX":"menu-x-1.html",
+    "betty": "https://kodux78k.github.io/oiDual-Aufabetty/",
+    "PWA": "https://kodux78k.github.io/Htmagik/index.html ",
+    "ATVR":"render-response.html",
+    "UZR":"https://kodux78k.github.io/oiDual-UzR-v0/",
+    "JHB": "https://kodux78k.github.io/DualHubjhbarros/ "
+  };
+
+  function logMistico(msg){
+    const el = document.createElement('div');
+    el.className = 'debug';
+    el.textContent = '◉ ' + msg;
+    pulsos.prepend(el);
+    // auto-trim
+    while(pulsos.children.length > 80) pulsos.removeChild(pulsos.lastChild);
+  }
+
+  // load page into main iframe (with small fade)
+  function loadPage(url){
+    frame.style.opacity = 0;
+    setTimeout(()=> {
+      frame.src = url;
+      frame.onload = ()=> frame.style.opacity = 1;
+    }, 220);
+    logMistico('Carregando: ' + url);
+  }
+
+  // symbol bar clicks
+  document.querySelectorAll('.symbol-button').forEach(b=>{
+    b.addEventListener('click', e=>{
+      const url = b.dataset.url || 'about:blank';
+      loadPage(url);
+    });
+    b.addEventListener('contextmenu', e=>{
+      e.preventDefault();
+      const url = b.dataset.url || 'about:blank';
+      const label = b.textContent || '•';
+      logMistico(`Editar símbolo: ${label} -> ${url} (use editor separado)`);
+    });
+  });
+
+  // upload local HTML into modal viewer
+  uploadBtn.addEventListener('click', ()=> uploadInput.click());
+  uploadInput.addEventListener('change', e=>{
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    if (!f.name.endsWith('.html')) return alert('Selecione um arquivo .html');
+    const r = new FileReader();
+    r.onload = ev=>{
+      const blob = new Blob([ev.target.result], {type:'text/html'});
+      const url = URL.createObjectURL(blob);
+      const modal = document.createElement('my-frame-loader');
+      modal.src = url;
+      document.body.appendChild(modal);
+      logMistico('Preview local: ' + f.name);
+    };
+    r.readAsText(f);
+  });
+
+  // remote component modal
+  remoteBtn.addEventListener('click', ()=>{
+    const url = prompt('URL do componente remoto:');
+    if (!url) return;
+    const modal = document.createElement('my-frame-loader');
+    modal.src = url;
+    document.body.appendChild(modal);
+    logMistico('Aberto remoto: ' + url);
+  });
+
+  // decoder
+  toggleDecoderBtn.addEventListener('click', ()=>{
+    decoderBox.style.display = decoderBox.style.display === 'none' ? 'block' : 'none';
+    decoderBox.setAttribute('aria-hidden', decoderBox.style.display === 'none');
+  });
+  closeDecoder.addEventListener('click', ()=> decoderBox.style.display = 'none');
+  decodeBtn.addEventListener('click', ()=>{
+    const code = (codeInput.value || '').trim().toUpperCase();
+    if (!code) return alert('Digite o selo');
+    const dest = CODE_MAP[code];
+    if (dest){
+      const modal = document.createElement('my-frame-loader');
+      modal.src = dest;
+      document.body.appendChild(modal);
+      decoderBox.style.display = 'none';
+      logMistico('Selo válidado: ' + code + ' → ' + dest);
+    } else {
+      alert('Selo desconhecido.');
+      logMistico('Selo desconhecido: ' + code);
+    }
+  });
+
+  // simple postMessage integration for pulses from iframe (if desired)
+  window.addEventListener('message', e=>{
+    if (e.data?.type === 'iframeClick'){
+      const x = e.data.x, y = e.data.y;
+      logMistico('Pulso do iframe em ' + x + ',' + y);
+    }
+  });
+
+  // small keyboard shortcuts
+  document.addEventListener('keydown', (ev)=>{
+    if (ev.key === 't' && (ev.ctrlKey || ev.metaKey)){ // ctrl/cmd + t = toggle decoder
+      ev.preventDefault();
+      decoderBox.style.display = decoderBox.style.display === 'none' ? 'block' : 'none';
+    }
+  });
+
+  // init
+  (function init(){
+    logMistico('Dual.Infodose LITe inicializado');
+    // load saved layout (simple example)
+    const last = localStorage.getItem('dual_last');
+    if (last) frame.src = last;
+    // save main iframe changes
+    frame.addEventListener('load', ()=> localStorage.setItem('dual_last', frame.src));
+  })();
+
+})();
+</script>
+
+<script>
+  class MyFrameLoader extends HTMLElement {
+    constructor(){
+      super();
+      this.attachShadow({mode:'open'});
+      this.shadowRoot.innerHTML = `
+        <style>
+          .overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:9999}
+          .box{width:92%;height:86%;background:#071017;border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
+          .top{display:flex;justify-content:flex-end;padding:8px}
+          button{background:transparent;border:0;color:#fff;font-size:18px;cursor:pointer;padding:6px}
+          iframe{flex:1;border:0}
+        </style>
+        <div class="overlay">
+          <div class="box">
+            <div class="top"><button class="close">✖</button></div>
+            <iframe></iframe>
+          </div>
+        </div>`;
+      this.iframe = this.shadowRoot.querySelector('iframe');
+      this.shadowRoot.querySelector('.close').onclick = ()=> this.remove();
+    }
+    set src(v){ this.iframe.src = v; }
+  }
+  customElements.define('my-frame-loader', MyFrameLoader);
+</script><script>
+(function(){
+  const frame = document.getElementById('frame');
+  const uploadInput = document.getElementById('uploadHTML');
+  const uploadBtn = document.getElementById('uploadComponentBtn');
+  const remoteBtn = document.getElementById('remoteComponentBtn');
+  const toggleDecoderBtn = document.getElementById('toggleDecoderBtn');
+  const decoderBox = document.getElementById('decoderBox');
+  const decodeBtn = document.getElementById('decodeBtn');
+  const closeDecoder = document.getElementById('closeDecoder');
+  const codeInput = document.getElementById('codeInput');
+  const pulsos = document.getElementById('pulsos');
+
+  const CODE_MAP = {
+    "DUAL":"menu.html",
+    "KBX":"menu-x-1.html",
+    "ATVR":"render-response.html",
+    "337":"KOBLLUX_MetaLux_CLEANED.html"
+  };
+
+  function logMistico(msg){
+    const el = document.createElement('div');
+    el.className = 'debug';
+    el.textContent = '◉ ' + msg;
+    pulsos.prepend(el);
+    // auto-trim
+    while(pulsos.children.length > 80) pulsos.removeChild(pulsos.lastChild);
+  }
+
+  // load page into main iframe (with small fade)
+  function loadPage(url){
+    frame.style.opacity = 0;
+    setTimeout(()=> {
+      frame.src = url;
+      frame.onload = ()=> frame.style.opacity = 1;
+    }, 220);
+    logMistico('Carregando: ' + url);
+  }
+
+  // symbol bar clicks
+  document.querySelectorAll('.symbol-button').forEach(b=>{
+    b.addEventListener('click', e=>{
+      const url = b.dataset.url || 'about:blank';
+      loadPage(url);
+    });
+    b.addEventListener('contextmenu', e=>{
+      e.preventDefault();
+      const url = b.dataset.url || 'about:blank';
+      const label = b.textContent || '•';
+      logMistico(`Editar símbolo: ${label} -> ${url} (use editor separado)`);
+    });
+  });
+
+  // upload local HTML into modal viewer
+  uploadBtn.addEventListener('click', ()=> uploadInput.click());
+  uploadInput.addEventListener('change', e=>{
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    if (!f.name.endsWith('.html')) return alert('Selecione um arquivo .html');
+    const r = new FileReader();
+    r.onload = ev=>{
+      const blob = new Blob([ev.target.result], {type:'text/html'});
+      const url = URL.createObjectURL(blob);
+      const modal = document.createElement('my-frame-loader');
+      modal.src = url;
+      document.body.appendChild(modal);
+      logMistico('Preview local: ' + f.name);
+    };
+    r.readAsText(f);
+  });
+
+  // remote component modal
+  remoteBtn.addEventListener('click', ()=>{
+    const url = prompt('URL do componente remoto:');
+    if (!url) return;
+    const modal = document.createElement('my-frame-loader');
+    modal.src = url;
+    document.body.appendChild(modal);
+    logMistico('Aberto remoto: ' + url);
+  });
+
+  // decoder
+  toggleDecoderBtn.addEventListener('click', ()=>{
+    decoderBox.style.display = decoderBox.style.display === 'none' ? 'block' : 'none';
+    decoderBox.setAttribute('aria-hidden', decoderBox.style.display === 'none');
+  });
+  closeDecoder.addEventListener('click', ()=> decoderBox.style.display = 'none');
+  decodeBtn.addEventListener('click', ()=>{
+    const code = (codeInput.value || '').trim().toUpperCase();
+    if (!code) return alert('Digite o selo');
+    const dest = CODE_MAP[code];
+    if (dest){
+      const modal = document.createElement('my-frame-loader');
+      modal.src = dest;
+      document.body.appendChild(modal);
+      decoderBox.style.display = 'none';
+      logMistico('Selo válidado: ' + code + ' → ' + dest);
+    } else {
+      alert('Selo desconhecido.');
+      logMistico('Selo desconhecido: ' + code);
+    }
+  });
+
+  // simple postMessage integration for pulses from iframe (if desired)
+  window.addEventListener('message', e=>{
+    if (e.data?.type === 'iframeClick'){
+      const x = e.data.x, y = e.data.y;
+      logMistico('Pulso do iframe em ' + x + ',' + y);
+    }
+  });
+
+  // small keyboard shortcuts
+  document.addEventListener('keydown', (ev)=>{
+    if (ev.key === 't' && (ev.ctrlKey || ev.metaKey)){ // ctrl/cmd + t = toggle decoder
+      ev.preventDefault();
+      decoderBox.style.display = decoderBox.style.display === 'none' ? 'block' : 'none';
+    }
+  });
+
+  // init
+  (function init(){
+    logMistico('Dual.Infodose LITe inicializado');
+    // load saved layout (simple example)
+    const last = localStorage.getItem('dual_last');
+    if (last) frame.src = last;
+    // save main iframe changes
+    frame.addEventListener('load', ()=> localStorage.setItem('dual_last', frame.src));
+  })();
+
+})();
+</script></body></html>

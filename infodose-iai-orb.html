@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" />
+  <title>Infodose x Kodux — Neural Interface</title>
+
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    :root {
+      --bg: #050505;
+      --glass: rgba(255, 255, 255, 0.03);
+      --glass-border: rgba(255, 255, 255, 0.08);
+      --accent-cyan: #7afff5;
+      --accent-purple: #a855f7;
+      --accent-blue: #3b82f6;
+      --accent-emerald: #10b981;
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
+    
+    body { 
+      background: var(--bg); 
+      color: #fff; 
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial;
+      overflow: hidden; 
+      height: 100vh;
+    }
+
+    /* Snap Scroll Container */
+    .snap-container {
+      height: 100vh;
+      overflow-y: auto;
+      scroll-snap-type: y mandatory;
+      scroll-behavior: smooth;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    section.page {
+      height: 100vh;
+      scroll-snap-align: start;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      position: relative;
+    }
+
+    /* Glassmorphism Elements */
+    .glass-card {
+      background: var(--glass);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-border);
+      border-radius: 28px;
+    }
+
+    .glass-pill {
+      background: rgba(255,255,255,0.05);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 20px;
+      padding: 8px 16px;
+    }
+
+    /* Orb Animations */
+    @keyframes spin-slow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    @keyframes pulse-slow { 0%, 100% { opacity: 0.6; transform: scale(1); } 50% { opacity: 0.3; transform: scale(1.05); } }
+    .animate-spin-slow { animation: spin-slow 12s linear infinite; }
+    .animate-pulse-slow { animation: pulse-slow 4s ease-in-out infinite; }
+
+    /* Hide Scrollbar */
+    .snap-container::-webkit-scrollbar { display: none; }
+
+    /* Active UI Overlay */
+    #active-ui {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      display: none;
+      background: rgba(0,0,0,0.9);
+      backdrop-filter: blur(15px);
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.5s ease;
+    }
+    #active-ui.visible { display: flex; opacity: 1; }
+
+    /* Buttons */
+    .btn-action {
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .btn-action:active { transform: scale(0.95); opacity: 0.8; }
+  </style>
+</head>
+<body>
+
+  <div class="fixed inset-0 pointer-events-none">
+    <div id="glow-1" class="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-blue-900/10 rounded-full blur-[120px] animate-pulse-slow"></div>
+    <div id="glow-2" class="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-cyan-900/10 rounded-full blur-[120px] animate-pulse-slow delay-1000"></div>
+  </div>
+
+  <header class="fixed top-0 left-0 right-0 z-50 px-6 py-4 flex justify-between items-center pointer-events-none">
+    <div class="glass-pill flex items-center gap-3 pointer-events-auto" onclick="scrollToTop()">
+      <div id="status-dot" class="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]"></div>
+      <span id="displayUser" class="text-[10px] font-bold tracking-[0.2em] uppercase text-white/70">SYNCING...</span>
+    </div>
+    
+    <div class="glass-pill flex items-center gap-2 pointer-events-auto">
+      <i data-lucide="cpu" class="w-3 text-white/40"></i>
+      <input id="id_modelName" type="text" placeholder="MODEL_ID" class="bg-transparent border-none text-[10px] w-20 focus:ring-0 text-white font-mono" />
+    </div>
+  </header>
+
+  <main class="snap-container" id="snapRoot">
+    
+    <section class="page">
+      <div class="relative z-10 text-center mb-12">
+        <h1 id="hero-title" class="text-5xl font-bold tracking-tighter mb-2">Nexus</h1>
+        <p id="hero-subtitle" class="text-[10px] uppercase tracking-[0.4em] text-white/30 font-light"></p>
+      </div>
+
+      <div id="orbClickable" class="relative group cursor-pointer">
+        <div id="orbContainer" class="relative w-72 h-72 transition-all duration-1000">
+          <div class="absolute inset-0 border border-white/5 rounded-full animate-spin-slow"></div>
+          <div class="absolute inset-4 border border-white/10 rounded-full animate-spin-slow" style="animation-direction: reverse;"></div>
+          
+          <div id="coreGlow" class="absolute inset-0 rounded-full blur-[60px] opacity-40 bg-cyan-500/20 transition-colors duration-1000"></div>
+          
+          <div id="orbPhysical" class="absolute inset-8 rounded-full border border-white/20 bg-gradient-to-br from-white/10 to-transparent backdrop-blur-md flex items-center justify-center overflow-hidden">
+             <div id="innerLight" class="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,rgba(255,255,255,0.2),transparent)]"></div>
+             <i data-lucide="zap" id="orbIcon" class="w-12 h-12 text-cyan-400 opacity-50"></i>
+          </div>
+        </div>
+        
+        <div class="absolute -bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center">
+            <span id="statusLabel" class="text-[9px] font-mono tracking-[0.3em] uppercase text-cyan-400">System Ready</span>
+            <div class="h-px w-24 bg-gradient-to-r from-transparent via-cyan-500/40 to-transparent mt-2"></div>
+        </div>
+      </div>
+
+      <div class="absolute bottom-10 animate-bounce text-white/20">
+        <i data-lucide="chevron-down"></i>
+      </div>
+    </section>
+
+    <section class="page">
+      <div class="w-full max-w-sm space-y-6">
+        <div class="text-center mb-8">
+          <h2 class="text-xl font-bold">Bio-Protocolos</h2>
+          <p class="text-[10px] uppercase tracking-widest text-white/20">Indução de Frequência Neural</p>
+        </div>
+
+        <div class="grid grid-cols-1 gap-4">
+          <button onclick="dose('High Focus','gamma','#3b82f6')" class="glass-card p-5 flex items-center gap-5 btn-action group">
+            <div class="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
+              <i data-lucide="zap" class="text-blue-400 w-6"></i>
+            </div>
+            <div class="text-left">
+              <h3 class="font-bold text-sm">High Focus</h3>
+              <p class="text-[10px] text-white/40 uppercase tracking-tighter">Sincronia Gamma • 40Hz</p>
+            </div>
+          </button>
+
+          <button onclick="dose('Flow State','alpha','#a855f7')" class="glass-card p-5 flex items-center gap-5 btn-action group">
+            <div class="w-12 h-12 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center">
+              <i data-lucide="sparkles" class="text-purple-400 w-6"></i>
+            </div>
+            <div class="text-left">
+              <h3 class="font-bold text-sm">Flow State</h3>
+              <p class="text-[10px] text-white/40 uppercase tracking-tighter">Ritmo Alpha • 10Hz</p>
+            </div>
+          </button>
+
+          <button onclick="dose('Deep Clarity','theta','#10b981')" class="glass-card p-5 flex items-center gap-5 btn-action group">
+            <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+              <i data-lucide="wind" class="text-emerald-400 w-6"></i>
+            </div>
+            <div class="text-left">
+              <h3 class="font-bold text-sm">Deep Clarity</h3>
+              <p class="text-[10px] text-white/40 uppercase tracking-tighter">Ondas Theta • 6Hz</p>
+            </div>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <section class="page">
+      <div class="w-full max-w-sm space-y-6">
+        <div class="grid grid-cols-2 gap-3">
+          <button onclick="triggerImport()" class="glass-card p-4 flex flex-col items-center gap-2 btn-action text-[10px] font-bold uppercase tracking-widest text-white/60">
+            <i data-lucide="upload-cloud" class="w-4"></i> Import
+          </button>
+          <button onclick="exportConversation()" class="glass-card p-4 flex flex-col items-center gap-2 btn-action text-[10px] font-bold uppercase tracking-widest text-white/60">
+            <i data-lucide="download-cloud" class="w-4"></i> Export
+          </button>
+        </div>
+
+        <div class="glass-card p-6 w-full">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">Neural Logs</h3>
+            <span id="log-count" class="text-[9px] bg-white/5 px-2 py-0.5 rounded text-white/30">0 Doses</span>
+          </div>
+          <div id="log-container" class="space-y-3 max-h-48 overflow-y-auto pr-2 scrollbar-hide">
+            </div>
+        </div>
+
+        <button onclick="clearConversation()" class="w-full py-4 text-[10px] font-bold uppercase tracking-widest text-red-400/50 hover:text-red-400 transition-colors">
+          Reset Neural Memory
+        </button>
+      </div>
+    </section>
+  </main>
+
+  <div id="active-ui">
+    <div id="session-bg" class="absolute inset-0 opacity-30"></div>
+    
+    <div class="relative z-10 text-center px-8 w-full max-w-md">
+      <div id="session-orb" class="w-48 h-48 mx-auto mb-12 relative">
+         <div class="absolute inset-0 border-2 border-white/10 rounded-full animate-ping opacity-20"></div>
+         <div id="session-orb-core" class="absolute inset-4 rounded-full border border-white/20 flex items-center justify-center">
+            <i data-lucide="activity" class="w-12 h-12 text-white/80 animate-pulse"></i>
+         </div>
+      </div>
+      
+      <h2 id="session-status" class="text-[10px] font-bold uppercase tracking-[0.6em] text-cyan-400 mb-6">Calibrando...</h2>
+      
+      <div class="min-h-[120px] mb-12">
+        <p id="ai-text" class="text-2xl font-light italic leading-relaxed text-white/90"></p>
+      </div>
+
+      <button onclick="terminate()" class="glass-pill px-12 py-4 text-[10px] font-bold uppercase tracking-[0.4em] text-red-400 border-red-500/20 btn-action">
+        Encerrar Conexão
+      </button>
+    </div>
+  </div>
+
+  <input id="di_import_file" type="file" accept="application/json" class="hidden" />
+  <div id="di_toast" class="fixed bottom-10 left-1/2 -translate-x-1/2 z-[200]"></div>
+
+  <script>
+    // --- CORE STATE ---
+    const DI_CONV_KEY = 'di_conversation';
+    let conversation = [];
+    let audioCtx = null, osc = null, gainNode = null;
+    let doseActive = false;
+    let typingSpeed = 40;
+
+    // Load User Configs
+    const di_userName = localStorage.getItem('di_userName') || 'Viajante';
+    const di_infodoseName = localStorage.getItem('di_infodoseName') || 'Nexus';
+    const di_modelName = localStorage.getItem('di_modelName') || '';
+
+    // --- INIT ---
+    window.onload = () => {
+      lucide.createIcons();
+      document.getElementById('displayUser').innerText = di_userName;
+      document.getElementById('hero-title').innerText = di_infodoseName;
+      document.getElementById('hero-subtitle').innerText = `Neural Interface v2.5 • Welcome, ${di_userName}`;
+      if(di_modelName) document.getElementById('id_modelName').value = di_modelName;
+      
+      const saved = localStorage.getItem(DI_CONV_KEY);
+      if(saved) conversation = JSON.parse(saved);
+      renderLogs();
+    };
+
+    // --- UI NAVIGATION ---
+    function scrollToTop() {
+      document.getElementById('snapRoot').scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // --- AUDIO ENGINE ---
+    function startAudio(freqType) {
+      if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if(osc) stopAudio();
+
+      osc = audioCtx.createOscillator();
+      gainNode = audioCtx.createGain();
+      
+      const freqs = { 'gamma': 240, 'alpha': 210, 'theta': 206 };
+      osc.frequency.setValueAtTime(freqs[freqType.toLowerCase()] || 200, audioCtx.currentTime);
+      
+      gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.05, audioCtx.currentTime + 3);
+      
+      osc.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+      osc.start();
+    }
+
+    function stopAudio() {
+      if(gainNode && audioCtx) {
+        const now = audioCtx.currentTime;
+        gainNode.gain.cancelScheduledValues(now);
+        gainNode.gain.exponentialRampToValueAtTime(0.0001, now + 1.5);
+        const oldOsc = osc;
+        setTimeout(() => { try { oldOsc.stop(); } catch(e){} }, 1600);
+      }
+    }
+
+    // --- DOSE LOGIC ---
+    async function dose(state, type, color) {
+      doseActive = true;
+      const ui = document.getElementById('active-ui');
+      const textDisplay = document.getElementById('ai-text');
+      const sessionOrb = document.getElementById('session-orb-core');
+      
+      // Setup UI
+      ui.style.display = 'flex';
+      setTimeout(() => ui.classList.add('visible'), 10);
+      textDisplay.innerText = "";
+      document.getElementById('session-status').innerText = "Sincronizando Frequência...";
+      document.getElementById('session-status').style.color = color;
+      document.getElementById('session-bg').style.background = `radial-gradient(circle at center, ${color}22 0%, transparent 70%)`;
+      sessionOrb.style.borderColor = `${color}44`;
+
+      startAudio(type === 'gamma' ? 'gamma' : (type === 'alpha' ? 'alpha' : 'theta'));
+
+      // AI Call
+      const model = document.getElementById('id_modelName').value || localStorage.getItem('di_modelName');
+      const apiKey = localStorage.getItem('di_apiKey');
+      let aiText = `Respire fundo, ${di_userName}. Sinta a frequência ${state} alinhar seus neurônios.`;
+
+      if(apiKey && model) {
+        try {
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+          const r = await fetch(url, {
+            method:'POST',
+            body:JSON.stringify({contents:[{parts:[{text:`Você é ${di_infodoseName}. Usuário: ${di_userName}. Estado: ${state}. Gere uma instrução curta e poética de biohacking (max 10 palavras).`}]}]})
+          });
+          const d = await r.json();
+          aiText = d?.candidates?.[0]?.content?.parts?.[0]?.text || aiText;
+        } catch(e) { console.error("AI Error:", e); }
+      }
+
+      // Typewriter Effect
+      let i = 0;
+      const typeFunc = () => {
+        if(!doseActive) return;
+        if(i < aiText.length) {
+          textDisplay.innerText += aiText.charAt(i++);
+          setTimeout(typeFunc, typingSpeed);
+        } else {
+          document.getElementById('session-status').innerText = "Indução Estável";
+          conversation.push({ state, aiText, ts: Date.now(), color });
+          localStorage.setItem(DI_CONV_KEY, JSON.stringify(conversation));
+          renderLogs();
+        }
+      };
+      setTimeout(typeFunc, 1500);
+    }
+
+    function terminate() {
+      doseActive = false;
+      stopAudio();
+      const ui = document.getElementById('active-ui');
+      ui.classList.remove('visible');
+      setTimeout(() => ui.style.display = 'none', 500);
+      toast("Conexão Finalizada");
+    }
+
+    // --- UTILS ---
+    function renderLogs() {
+      const container = document.getElementById('log-container');
+      if(!conversation.length) {
+        container.innerHTML = `<div class="text-[10px] text-white/10 text-center py-4 italic">Nenhum registro encontrado</div>`;
+        return;
+      }
+      document.getElementById('log-count').innerText = `${conversation.length} Doses`;
+      container.innerHTML = conversation.slice(-10).reverse().map(log => `
+        <div class="p-3 rounded-xl bg-white/[0.02] border-l-2" style="border-color: ${log.color}">
+          <div class="flex justify-between text-[8px] font-bold opacity-30 mb-1">
+            <span>${log.state.toUpperCase()}</span>
+            <span>${new Date(log.ts).toLocaleTimeString()}</span>
+          </div>
+          <div class="text-[11px] text-white/70 italic leading-snug">"${log.aiText}"</div>
+        </div>
+      `).join('');
+    }
+
+    function toast(msg) {
+      const t = document.getElementById('di_toast');
+      const el = document.createElement('div');
+      el.className = 'glass-pill text-[10px] font-bold uppercase tracking-widest text-white/80 animate-bounce shadow-2xl';
+      el.innerText = msg;
+      t.appendChild(el);
+      setTimeout(() => el.remove(), 3000);
+    }
+
+    function exportConversation() {
+      const blob = new Blob([JSON.stringify(conversation, null, 2)], {type:'application/json'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `neural_logs_${Date.now()}.json`;
+      a.click();
+      toast('Backup Concluído');
+    }
+
+    function triggerImport() { document.getElementById('di_import_file').click(); }
+    document.getElementById('di_import_file').onchange = async (e) => {
+      const file = e.target.files[0];
+      if(!file) return;
+      try {
+        const text = await file.text();
+        conversation = JSON.parse(text);
+        localStorage.setItem(DI_CONV_KEY, JSON.stringify(conversation));
+        renderLogs();
+        toast('Memória Sincronizada');
+      } catch(e) { toast('Erro no Arquivo'); }
+    };
+
+    function clearConversation() {
+      if(confirm("Deseja apagar sua memória neural?")) {
+        conversation = [];
+        localStorage.removeItem(DI_CONV_KEY);
+        renderLogs();
+        toast('Memory Reset');
+      }
+    }
+  </script>
+</body>
+</html>
