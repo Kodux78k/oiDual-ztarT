@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Fusion OS v12 — Dual Pulse</title>
+
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    :root {
+      --bg: #030303;
+      --glass: rgba(255, 255, 255, 0.03);
+      --glass-border: rgba(255, 255, 255, 0.08);
+      
+      /* Cores Dinâmicas (Alteradas via JS) */
+      --active-color: #7afff5; /* Começa Cyan */
+      --active-glow: rgba(122, 255, 245, 0.15);
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
+    
+    body { 
+      background: var(--bg); 
+      color: #fff; 
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial;
+      overflow: hidden; 
+      height: 100vh; width: 100vw;
+      user-select: none;
+      transition: background 1s ease; /* Transição suave de cor de fundo */
+    }
+
+    /* --- ATMOSPHERE GLOWS --- */
+    .ambient-glow {
+        position: fixed; pointer-events: none; z-index: 0;
+        border-radius: 50%; filter: blur(100px); opacity: 0.2;
+        transition: background 1s ease, opacity 1s ease;
+    }
+    #glow-top { top: -20%; left: -20%; width: 80vw; height: 80vw; background: var(--active-color); }
+    #glow-bottom { bottom: -20%; right: -20%; width: 80vw; height: 80vw; background: var(--active-color); opacity: 0.1; }
+
+    /* --- HORIZONTAL VIEWPORT --- */
+    #universe-viewport {
+      display: flex;
+      width: 300vw;
+      height: 100vh;
+      transform: translateX(-100vw);
+      transition: transform 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+      position: relative; z-index: 10;
+    }
+
+    .screen-panel {
+      width: 100vw; height: 100vh;
+      position: relative; flex-shrink: 0;
+    }
+
+    /* --- VERTICAL SCROLL SYSTEM (NEXUS) --- */
+    .vertical-scroll-container {
+      height: 100vh;
+      overflow-y: scroll;
+      scroll-snap-type: y mandatory;
+      scrollbar-width: none;
+    }
+    .vertical-scroll-container::-webkit-scrollbar { display: none; }
+
+    .v-section {
+      height: 100vh;
+      width: 100%;
+      scroll-snap-align: start;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 0 24px;
+      position: relative;
+    }
+
+    /* GLASS DESIGN */
+    .glass-card {
+      background: var(--glass);
+      backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
+      border: 1px solid var(--glass-border);
+      border-radius: 28px;
+      transition: all 0.3s ease;
+    }
+    .glass-card:active { transform: scale(0.98); }
+
+    .glass-pill {
+      background: rgba(255,255,255,0.05);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 20px;
+      padding: 6px 14px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      transition: all 0.3s ease;
+    }
+
+    /* ORB ANIMATION */
+    @keyframes orbit { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    .orb-glow { filter: blur(40px); opacity: 0.4; transition: background 0.5s; }
+    
+    .tab-btn { opacity: 0.4; border-bottom: 2px solid transparent; padding-bottom: 4px; transition: 0.3s; }
+    .tab-btn.active { opacity: 1; border-color: var(--active-color); color: var(--active-color); }
+
+    /* VIDEO CAROUSEL */
+    .video-row {
+        display: flex; gap: 16px; overflow-x: auto; padding: 10px 0;
+        scrollbar-width: none;
+    }
+    .video-row::-webkit-scrollbar { display: none; }
+    .video-card { width: 220px; flex-shrink: 0; }
+
+    /* NAV DOTS */
+    #nav-indicator {
+        position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+        display: flex; gap: 8px; z-index: 80; pointer-events: none;
+    }
+    .dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.2); transition: 0.3s; }
+    .dot.active { width: 24px; background: var(--active-color); box-shadow: 0 0 10px var(--active-color); }
+
+    /* DYNAMIC TEXT COLOR CLASS */
+    .text-dynamic { color: var(--active-color); transition: color 0.5s; }
+    .border-dynamic { border-color: var(--active-color); transition: border-color 0.5s; }
+  </style>
+</head>
+<body>
+
+  <!-- AMBIENT LAYER -->
+  <div id="glow-top" class="ambient-glow"></div>
+  <div id="glow-bottom" class="ambient-glow"></div>
+
+  <!-- HEADER INFOBAR -->
+  <header class="fixed top-0 left-0 right-0 z-[100] px-6 py-8 flex justify-between items-start pointer-events-none">
+    <!-- ESQUERDA: NOME DO USUÁRIO (Pedido: trocar fusion pelo di_userName) -->
+    <div class="glass-pill flex items-center gap-3 pointer-events-auto active" onclick="Navigation.to(1)">
+      <div id="header-dot" class="w-2 h-2 rounded-full animate-pulse" style="background: var(--active-color)"></div>
+      <span id="displayUserHeader" class="text-[10px] tracking-widest uppercase">Visitante</span>
+    </div>
+
+    <!-- DIREITA: NOME DO INFODOSE -->
+    <div class="glass-pill flex items-center gap-2 pointer-events-auto">
+       <span id="displayInfodoseHeader" class="text-[9px] text-white/60">Sistema</span>
+    </div>
+  </header>
+
+  <!-- UNIVERSE (Horizontal Screens) -->
+  <div id="universe-viewport">
+      
+      <!-- [0] CORTEX (Memória) -->
+      <section class="screen-panel" id="view-cortex">
+          <div class="pt-28 px-6 h-full flex flex-col max-w-2xl mx-auto">
+              <div class="flex items-center justify-between mb-8">
+                  <h2 class="text-2xl font-black uppercase tracking-tighter">Córtex</h2>
+                  <div class="flex gap-4 text-[10px] font-bold uppercase">
+                      <button onclick="Cortex.switch('crystal')" id="tab-crystal" class="tab-btn active">Cristal</button>
+                      <button onclick="Cortex.switch('train')" id="tab-train" class="tab-btn">Matriz</button>
+                  </div>
+              </div>
+
+              <div class="flex-1 overflow-y-auto pb-32">
+                  <div id="panel-crystal" class="space-y-4">
+                      <div id="crystal-list" class="grid gap-3"></div>
+                      <div class="glass-card p-4 flex gap-3 mt-6">
+                          <input id="crystal-input" class="flex-1 bg-transparent border-none text-sm text-white placeholder-white/30" placeholder="Fixar nova memória...">
+                          <button onclick="Cortex.addCrystal()" class="text-dynamic font-bold text-xs uppercase">Salvar</button>
+                      </div>
+                  </div>
+
+                  <div id="panel-train" class="hidden space-y-4">
+                      <div class="h-80 glass-card p-4">
+                          <textarea id="train-editor" class="w-full h-full bg-transparent border-none text-xs font-mono text-white/70 resize-none outline-none" placeholder="Definições de treino..."></textarea>
+                      </div>
+                      <button onclick="Cortex.saveTrain()" class="glass-pill w-full text-center text-dynamic py-3">Aplicar Matriz</button>
+                  </div>
+              </div>
+          </div>
+      </section>
+
+      <!-- [1] NEXUS (Vertical Core) -->
+      <section class="screen-panel" id="view-nexus">
+          <div class="vertical-scroll-container">
+              
+              <!-- SECTION 1: HERO ORB -->
+              <div class="v-section">
+                  <div class="text-center mb-12">
+                      <!-- Título Central = di_infodoseName -->
+                      <h1 id="hero-title" class="text-6xl font-black tracking-tighter mb-2 bg-clip-text text-transparent bg-gradient-to-b from-white to-white/20 transition-all duration-500">Nexus</h1>
+                      <div class="flex items-center justify-center gap-2">
+                        <span class="w-8 h-[1px] bg-white/20"></span>
+                        <p class="text-[9px] uppercase tracking-[0.6em] text-white/30">PULSO DUAL</p>
+                        <span class="w-8 h-[1px] bg-white/20"></span>
+                      </div>
+                  </div>
+
+                  <!-- THE ORB -->
+                  <div id="orbClickable" class="relative group cursor-grab touch-none p-12"
+                       onmousedown="OrbDrag.start(event)" ontouchstart="OrbDrag.start(event)"
+                       onmouseup="OrbDrag.end()" ontouchend="OrbDrag.end()"
+                       onmousemove="OrbDrag.move(event)" ontouchmove="OrbDrag.move(event)">
+                     
+                     <!-- SECTION 1: ORB -->
+  <section class="section">
+    <div class="orb-wrapper" id="orb">
+      <div class="halo"></div>
+      <div class="symbol">
+        <svg width="160" height="160" viewBox="0 0 200 200">
+          <defs>
+            <linearGradient id="grad" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stop-color="#fff" stop-opacity="0.6"/>
+              <stop offset="100%" stop-color="#fff" stop-opacity="0.2"/>
+            </linearGradient>
+          </defs>
+          <circle cx="100" cy="100" r="90" stroke="url(#grad)" stroke-width="2" fill="none"/>
+          <line x1="100" y1="10" x2="100" y2="190" stroke="url(#grad)" stroke-width="3" opacity="0.2"/>
+          <path d="M100 10 A90 90 0 0 0 100 190" stroke="url(#grad)" stroke-width="6" fill="none"/>
+        </svg>
+      </div>
+    </div>
+<p style="opacity:.3;margin-top:40px; text-align:center;">arraste para baixo</p>
+  </section>
+</div>
+                  <div class="mt-12 animate-bounce opacity-20"><i data-lucide="chevron-down"></i></div>
+              </div>
+
+              <!-- SECTION 2: ESTADOS SUGESTIVOS (Micro-personalizações) -->
+              <div class="v-section">
+                  <div class="glass-card w-full p-8 space-y-8 transition-colors duration-1000" id="protocols-card">
+                      <h3 class="text-xs font-black uppercase tracking-widest text-white/40 text-center">Modulação de Estado</h3>
+                      <div class="grid grid-cols-2 gap-4">
+                          <!-- Gamma -> Hiperfoco -->
+                          <button onclick="Atmosphere.set('gamma')" class="glass-card p-6 flex flex-col items-center gap-3 active:scale-95 transition hover:bg-white/5 group">
+                              <i data-lucide="zap" class="text-blue-400 group-hover:scale-110 transition-transform"></i>
+                              <span class="text-[10px] font-bold uppercase text-blue-100">Hiperfoco</span>
+                          </button>
+                          <!-- Alpha -> Fluxo Criativo -->
+                          <button onclick="Atmosphere.set('alpha')" class="glass-card p-6 flex flex-col items-center gap-3 active:scale-95 transition hover:bg-white/5 group">
+                              <i data-lucide="sparkles" class="text-purple-400 group-hover:scale-110 transition-transform"></i>
+                              <span class="text-[10px] font-bold uppercase text-purple-100">Fluxo Criativo</span>
+                          </button>
+                          <!-- Theta -> Imersão Zen -->
+                          <button onclick="Atmosphere.set('theta')" class="glass-card p-6 flex flex-col items-center gap-3 active:scale-95 transition hover:bg-white/5 group">
+                              <i data-lucide="moon" class="text-emerald-400 group-hover:scale-110 transition-transform"></i>
+                              <span class="text-[10px] font-bold uppercase text-emerald-100">Imersão Zen</span>
+                          </button>
+                          <!-- Delta -> Regeneração -->
+                          <button onclick="Atmosphere.set('delta')" class="glass-card p-6 flex flex-col items-center gap-3 active:scale-95 transition hover:bg-white/5 group">
+                              <i data-lucide="waves" class="text-cyan-400 group-hover:scale-110 transition-transform"></i>
+                              <span class="text-[10px] font-bold uppercase text-cyan-100">Regeneração</span>
+                          </button>
+                      </div>
+                      <div class="text-center">
+                          <p class="text-[9px] text-white/20 uppercase tracking-widest">Ajuste de Chaves Abaixo</p>
+                          <i data-lucide="chevron-down" class="w-4 h-4 mx-auto text-white/20 mt-2"></i>
+                      </div>
+                  </div>
+              </div>
+
+              <!-- SECTION 3: KEY MANAGER -->
+              <div class="v-section">
+                  <div class="glass-card w-full p-6 flex flex-col h-[70vh]">
+                      <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-sm font-black uppercase tracking-widest text-dynamic">Configuração de Chaves</h3>
+                        <i data-lucide="key" class="w-4 h-4 text-white/30"></i>
+                      </div>
+                      
+                      <div id="vKeysList" class="flex-1 overflow-y-auto pr-2 space-y-4">
+                          <!-- JS Populates -->
+                      </div>
+
+                      <button onclick="KeysManager.save()" class="mt-4 glass-pill bg-white/5 text-dynamic border-dynamic w-full py-4 font-bold hover:bg-white/10">
+                          REINICIAR SISTEMA
+                      </button>
+                  </div>
+              </div>
+
+          </div>
+      </section>
+
+      <!-- [2] DUALTUBE -->
+      <section class="screen-panel bg-[#050505]" id="view-dualtube">
+          <div class="pt-28 px-6 h-full flex flex-col overflow-y-auto pb-32">
+              <div class="mb-10">
+                <h2 class="text-3xl font-black text-white">DualTube</h2>
+                <p class="text-[10px] text-dynamic uppercase tracking-[0.4em] font-bold">Curadoria Visual</p>
+              </div>
+
+              <div id="video-categories" class="space-y-12">
+                  <!-- JS Populates -->
+              </div>
+          </div>
+      </section>
+  </div>
+
+  <!-- NAV INDICATOR -->
+  <div id="nav-indicator">
+      <div class="dot" id="dot-0"></div>
+      <div class="dot active" id="dot-1"></div>
+      <div class="dot" id="dot-2"></div>
+  </div>
+
+  <!-- PLAYER OVERLAY -->
+  <div id="player-overlay" class="fixed inset-0 z-[200] bg-black/95 backdrop-blur-3xl hidden flex-col">
+      <div class="p-6 flex justify-end"><button onclick="closePlayer()" class="glass-pill border-red-500/40 text-red-400 hover:bg-red-500/10">Fechar Sessão</button></div>
+      <div class="flex-1 flex items-center justify-center p-4">
+          <div id="yt-embed" class="w-full max-w-5xl aspect-video bg-black rounded-3xl border border-white/10 shadow-2xl overflow-hidden"></div>
+      </div>
+  </div>
+
+  <div id="di_toast" class="fixed bottom-24 left-1/2 -translate-x-1/2 z-[300] pointer-events-none flex flex-col gap-2 w-max max-w-[90vw]"></div>
+
+  <script>
+    // --- CONFIG & KEYS ---
+    const KEYS = {
+        USER: 'di_userName',
+        API: 'di_apiKey',
+        MODEL: 'di_modelName',
+        INFODOSE: 'di_infodoseName',
+        TRAIN_TXT: 'di_trainingText',
+        TRAIN_FILE: 'di_trainingFileName',
+        TRAIN_ACTIVE: 'di_trainingActive',
+        CRYSTAL: 'di_cristalizados'
+    };
+
+    const STATE = {
+        screen: 1,
+        crystals: [],
+        currentColor: '#7afff5'
+    };
+
+    window.onload = () => {
+        lucide.createIcons();
+        initData();
+        Navigation.to(1);
+    };
+
+    function initData() {
+        // Identity Loading
+        const user = localStorage.getItem(KEYS.USER) || 'Piloto';
+        const info = localStorage.getItem(KEYS.INFODOSE) || 'FUSION';
+        
+        // Header Swap Logic (Requested)
+        document.getElementById('displayUserHeader').innerText = user;   // Left Pill
+        document.getElementById('displayInfodoseHeader').innerText = info; // Right Pill
+        document.getElementById('hero-title').innerText = info; // Center Title
+
+        // Welcome Message (Requested)
+        setTimeout(() => {
+            toast(`oi dual, ${user}, ${info} ativo em pulso DUAL!`, 5000);
+        }, 800);
+
+        // Cortex Data
+        try { STATE.crystals = JSON.parse(localStorage.getItem(KEYS.CRYSTAL) || '[]'); } catch(e){}
+        Cortex.renderCrystals();
+        document.getElementById('train-editor').value = localStorage.getItem(KEYS.TRAIN_TXT) || '';
+
+        // Init Managers
+        KeysManager.render();
+        DualTube.render();
+    }
+
+    // --- ATMOSPHERE & STATES ---
+    const Atmosphere = {
+        set: (type) => {
+            const root = document.documentElement.style;
+            let color, icon, msg;
+
+            switch(type) {
+                case 'gamma': // Hiperfoco
+                    color = '#3b82f6'; // Blue
+                    icon = 'zap';
+                    msg = 'Hiperfoco Ativado';
+                    break;
+                case 'alpha': // Fluxo
+                    color = '#a855f7'; // Purple
+                    icon = 'sparkles';
+                    msg = 'Fluxo Criativo Sintonizado';
+                    break;
+                case 'theta': // Zen
+                    color = '#10b981'; // Emerald
+                    icon = 'moon';
+                    msg = 'Imersão Zen Iniciada';
+                    break;
+                case 'delta': // Regen
+                    color = '#7afff5'; // Cyan
+                    icon = 'waves';
+                    msg = 'Frequência Regenerativa';
+                    break;
+                default:
+                    color = '#7afff5';
+                    icon = 'activity';
+            }
+
+            // Apply Changes
+            STATE.currentColor = color;
+            root.setProperty('--active-color', color);
+            
+            // Visual Updates
+            document.getElementById('orb-core').style.backgroundColor = color;
+            document.getElementById('orb-icon').style.color = color;
+            document.getElementById('hero-title').style.background = `linear-gradient(to bottom, white, ${color}44)`;
+            document.getElementById('hero-title').style.webkitBackgroundClip = 'text';
+            
+            // Re-render lucide icons to update colors if needed
+            setTimeout(() => lucide.createIcons(), 50);
+
+            toast(msg);
+        }
+    };
+
+    // --- NAVIGATION ---
+    const Navigation = {
+        to: (idx) => {
+            STATE.screen = idx;
+            document.getElementById('universe-viewport').style.transform = `translateX(-${idx * 100}vw)`;
+            [0,1,2].forEach(i => document.getElementById(`dot-${i}`).classList.toggle('active', i === idx));
+        }
+    };
+
+    // Swipe Handling
+    let tsX = 0, tsY = 0;
+    document.addEventListener('touchstart', e => { tsX = e.touches[0].clientX; tsY = e.touches[0].clientY; }, {passive:true});
+    document.addEventListener('touchend', e => {
+        const dX = tsX - e.changedTouches[0].clientX;
+        const dY = tsY - e.changedTouches[0].clientY;
+        if(Math.abs(dX) > Math.abs(dY) && Math.abs(dX) > 80) {
+            if(dX > 0 && STATE.screen < 2) Navigation.to(STATE.screen + 1);
+            if(dX < 0 && STATE.screen > 0) Navigation.to(STATE.screen - 1);
+        }
+    }, {passive:true});
+
+    // Orb Drag
+    const OrbDrag = {
+        active: false, startX: 0, el: null,
+        start: function(e) { 
+            this.active = true; 
+            this.startX = e.type.includes('mouse')?e.clientX:e.touches[0].clientX; 
+            this.el = document.getElementById('orbContainer');
+        },
+        move: function(e) {
+            if(!this.active) return;
+            const x = e.type.includes('mouse')?e.clientX:e.touches[0].clientX;
+            const diff = x - this.startX;
+            this.el.style.transform = `translateX(${diff/3}px) rotate(${diff/10}deg)`; 
+        },
+        end: function() {
+            if(!this.active) return;
+            this.active = false;
+            const style = window.getComputedStyle(this.el);
+            const matrix = new WebKitCSSMatrix(style.transform);
+            if(matrix.m41 > 60) Navigation.to(2);
+            else if(matrix.m41 < -60) Navigation.to(0);
+            this.el.style.transform = 'translateX(0) rotate(0)';
+        }
+    };
+
+    // --- CORTEX ---
+    const Cortex = {
+        switch: (t) => {
+            document.getElementById('panel-crystal').classList.toggle('hidden', t !== 'crystal');
+            document.getElementById('panel-train').classList.toggle('hidden', t !== 'train');
+            document.getElementById('tab-crystal').classList.toggle('active', t === 'crystal');
+            document.getElementById('tab-train').classList.toggle('active', t === 'train');
+        },
+        addCrystal: () => {
+            const inp = document.getElementById('crystal-input');
+            if(!inp.value) return;
+            STATE.crystals.unshift({ id: Date.now(), txt: inp.value });
+            localStorage.setItem(KEYS.CRYSTAL, JSON.stringify(STATE.crystals));
+            inp.value = ''; Cortex.renderCrystals();
+            toast('Memória Cristalizada');
+        },
+        renderCrystals: () => {
+            const el = document.getElementById('crystal-list');
+            el.innerHTML = STATE.crystals.map(c => `
+                <div class="glass-card p-4 border-l-4 flex justify-between items-center group" style="border-color: ${STATE.currentColor}44">
+                    <p class="text-sm font-medium text-white/80">"${c.txt}"</p>
+                    <button onclick="Cortex.delCrystal(${c.id})" class="opacity-0 group-hover:opacity-100 text-red-400 transition">
+                        <i data-lucide="trash" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        },
+        delCrystal: (id) => {
+            STATE.crystals = STATE.crystals.filter(c => c.id !== id);
+            localStorage.setItem(KEYS.CRYSTAL, JSON.stringify(STATE.crystals));
+            Cortex.renderCrystals();
+        },
+        saveTrain: () => {
+            localStorage.setItem(KEYS.TRAIN_TXT, document.getElementById('train-editor').value);
+            localStorage.setItem(KEYS.TRAIN_ACTIVE, '1');
+            toast('Matriz Sincronizada');
+        }
+    };
+
+    // --- KEYS MANAGER ---
+    const KeysManager = {
+        render: () => {
+            const list = document.getElementById('vKeysList');
+            list.innerHTML = Object.values(KEYS).map(k => {
+                const val = localStorage.getItem(k) || '';
+                return `
+                    <div class="space-y-1">
+                        <label class="text-[8px] font-black text-white/30 uppercase tracking-[0.2em]">${k}</label>
+                        <input type="text" data-key="${k}" value="${val}" class="w-full bg-white/5 border border-white/5 rounded-xl px-4 py-3 text-xs font-mono text-white/90 focus:border-white/30 outline-none transition" style="color: var(--active-color)">
+                    </div>
+                `;
+            }).join('');
+        },
+        save: () => {
+            const inputs = document.querySelectorAll('#vKeysList input');
+            inputs.forEach(i => {
+                if(i.value) localStorage.setItem(i.dataset.key, i.value);
+                else localStorage.removeItem(i.dataset.key);
+            });
+            toast('Reboot do Sistema...');
+            setTimeout(() => location.reload(), 1500);
+        }
+    };
+
+    // --- DUALTUBE ---
+    const DualTube = {
+        data: [
+            { 
+                cat: 'Trilhas e Ativações', 
+                vids: ["Bt_rLbMjJDk", "_0wVkryxanE", "Id2NI9tv1r4"],
+                desc: 'Aromas, Arquétipos e Playlists'
+            },
+            { 
+                cat: 'Sinopses Essenciais', 
+                vids: ["qldgs0aLdB0", "FbutKMpd8MY", "1L9_rFmIGJ8"],
+                desc: 'Dopamina, Espaço da Mente, Recompensa'
+            },
+            { 
+                cat: 'Ambiente e Mente', 
+                vids: ["koKhjQKGJSc", "KrtOVrk8aDk"],
+                desc: 'Poder das cortinas e o chão'
+            },
+            { 
+                cat: 'Neurociência', 
+                vids: ["NBWDV6xjUP0", "dGYbN8jgdNQ", "JBjFhAutIVk", "GSBv45vigRE"],
+                desc: 'Dopamina, TDAH, Subconsciente'
+            },
+            { 
+                cat: 'Meditações Guiadas', 
+                vids: ["hfQ1L6fCfAo", "Tq99vQNQ6dQ", "DTDfkHwuMic", "OVfqxW_Xlhw", "kCHvLOtJIwQ"],
+                desc: 'Deriva, Navegando, Sinfonia'
+            }
+        ],
+        render: () => {
+            const container = document.getElementById('video-categories');
+            container.innerHTML = DualTube.data.map(c => `
+                <div class="space-y-4">
+                    <div class="flex flex-col">
+                        <h4 class="text-[12px] font-black uppercase tracking-[0.2em] text-white/80">${c.cat}</h4>
+                        <p class="text-[9px] text-white/30 uppercase tracking-widest">${c.desc}</p>
+                    </div>
+                    <div class="video-row">
+                        ${c.vids.map(id => `
+                            <div onclick="playVideo('${id}')" class="video-card glass-card overflow-hidden active:scale-95 transition cursor-pointer group">
+                                <img src="https://img.youtube.com/vi/${id}/mqdefault.jpg" class="w-full h-28 object-cover opacity-70 group-hover:opacity-100 transition">
+                                <div class="p-3 text-[10px] font-bold text-white/60 truncate uppercase tracking-widest flex items-center gap-2">
+                                    <i data-lucide="play-circle" class="w-3 h-3 text-dynamic"></i> Reprod.
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+    };
+
+    function playVideo(id) {
+        document.getElementById('player-overlay').classList.replace('hidden','flex');
+        document.getElementById('yt-embed').innerHTML = `<iframe width="100%" height="100%" src="https://www.youtube.com/embed/${id}?autoplay=1" frameborder="0" allowfullscreen></iframe>`;
+    }
+    function closePlayer() {
+        document.getElementById('player-overlay').classList.replace('flex','hidden');
+        document.getElementById('yt-embed').innerHTML = '';
+    }
+
+    function toast(m, time = 2500) {
+        const t = document.getElementById('di_toast');
+        const d = document.createElement('div');
+        d.className = "glass-pill bg-black/90 border-dynamic px-8 py-3 shadow-2xl backdrop-blur-xl text-xs font-bold uppercase tracking-widest text-center";
+        d.style.color = STATE.currentColor;
+        d.style.borderColor = STATE.currentColor; // Fix for border color
+        d.innerText = m; t.appendChild(d);
+        setTimeout(()=>d.remove(), time);
+    }
+  </script>
+</body>
+</html>
+
