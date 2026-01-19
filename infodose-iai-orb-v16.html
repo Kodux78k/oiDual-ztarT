@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Di — Versão Unificadonha Delicinha</title>
+
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    :root{
+      --bg:#030303;
+      --glass: rgba(255,255,255,0.03);
+      --glass-border: rgba(255,255,255,0.08);
+      --active-color: #7afff5;
+    }
+
+    *{box-sizing:border-box; -webkit-tap-highlight-color: transparent; outline: none}
+    html,body{height:100%; width:100%; margin:0; padding:0; background:var(--bg); color:#fff; font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",Roboto,Helvetica,Arial; -webkit-font-smoothing:antialiased;}
+    /* prevent entire page from scrolling when sheet open */
+    body.nexus-locked{ touch-action: none; overflow: hidden; }
+
+    /* Header */
+    header {
+      position: fixed; top:0; left:0; right:0; z-index:120; padding:18px 22px; display:flex; justify-content:space-between; align-items:center;
+      transition: transform 320ms cubic-bezier(.2,.9,.2,1), background 300ms; pointer-events:none;
+      background: linear-gradient(180deg, rgba(0,0,0,0.0), rgba(0,0,0,0.0));
+    }
+    header.visible { pointer-events:auto; }
+    .glass-pill { pointer-events:auto; display:inline-flex; align-items:center; gap:10px; padding:8px 12px; background: rgba(255,255,255,0.04); border-radius:18px; border:1px solid rgba(255,255,255,0.06); font-weight:700; font-size:11px; letter-spacing:.06em; text-transform:uppercase; backdrop-filter: blur(6px); }
+    #header-dot{ width:8px; height:8px; border-radius:8px; background:var(--active-color); box-shadow: 0 0 12px var(--active-color); }
+
+    /* Universe: horizontal screens (keeps your previous pattern) */
+    #universe-viewport { display:flex; width:300vw; height:100vh; transform: translateX(-100vw); transition: transform 600ms cubic-bezier(.23,1,.32,1); position:relative; z-index:10; }
+    .screen-panel{ width:100vw; height:100vh; flex-shrink:0; position:relative; display:flex; flex-direction:column; }
+
+    /* NEXUS vertical system: each section = 100vh + snap */
+    .vertical-scroll-container{
+      height:100vh; overflow-y: auto; scroll-snap-type: y mandatory; -webkit-overflow-scrolling: touch;
+      scrollbar-width: none; overscroll-behavior-y: contain;
+      position:relative;
+    }
+    .vertical-scroll-container::-webkit-scrollbar{ display:none; }
+    .v-section{ height:100vh; width:100%; scroll-snap-align:start; display:flex; flex-direction:column; justify-content:center; align-items:center; padding:28px; position:relative; }
+
+    /* Orb styles */
+    .orb-wrap{ width:240px; height:240px; position:relative; display:flex; align-items:center; justify-content:center; }
+    .orb { width:100%; height:100%; border-radius:999px; position:relative; overflow:visible; }
+    .orb .ring{ position:absolute; inset:0; border-radius:999px; border:1px solid rgba(255,255,255,0.06); box-shadow:0 6px 40px rgba(0,0,0,.6); }
+    .orb .core{ position:absolute; inset:12px; border-radius:999px; background:var(--active-color); filter: blur(16px); transition: background 600ms ease, transform 400ms ease; }
+    .orb .center-gloss{ position:absolute; inset:36px; border-radius:999px; background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.12), transparent 20%); opacity:.9; }
+    .orb .orbit-shell{ position:absolute; inset:0; border-radius:999px; border:1px solid rgba(255,255,255,0.03); mix-blend-mode:screen; animation: spin 14s linear infinite; transform-origin:center; }
+    @keyframes spin{ from{transform:rotate(0)} to{transform:rotate(360deg)} }
+
+    /* glass-card (for cards in sections) */
+    .glass-card{ width:100%; max-width:980px; background:var(--glass); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); border-radius:20px; border:1px solid var(--glass-border); padding:18px; margin:12px 0; transition: transform 280ms cubic-bezier(.2,.9,.2,1), box-shadow 240ms; }
+    .glass-card:active{ transform: translateY(2px) scale(.998); }
+
+    /* Protocol grid */
+    .grid-4{ display:grid; grid-template-columns: repeat(4,1fr); gap:12px; width:100%; }
+    .state-btn{ display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; padding:16px; border-radius:14px; background: rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.03); cursor:pointer; }
+
+    /* Bottom-sheet */
+    #bottom-sheet {
+      position: fixed; left: 0; right: 0; bottom: -100%; height: 86vh; max-height: 92vh; z-index: 220;
+      background: linear-gradient(180deg, rgba(8,8,8,0.98), rgba(6,6,6,0.99)); border-top-left-radius: 18px; border-top-right-radius: 18px;
+      box-shadow: 0 -20px 60px rgba(0,0,0,0.65); transition: transform 320ms cubic-bezier(.2,.9,.2,1);
+      transform: translateY(100%); touch-action: none; display:flex; flex-direction:column; overflow:auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    #bottom-sheet.open { transform: translateY(0%); bottom:0; }
+    #sheet-handle { width:60px; height:6px; background: rgba(255,255,255,0.06); border-radius:999px; margin:10px auto; }
+
+    /* dimmer behind sheet */
+    #sheet-dimmer { position: fixed; inset:0; z-index:210; background: rgba(0,0,0,0.45); opacity:0; pointer-events:none; transition: opacity 240ms; }
+    #sheet-dimmer.visible{ opacity:1; pointer-events:auto; }
+
+    /* header hide/show */
+    .header-hidden { transform: translateY(-120%); }
+
+    /* subtle parallax text on hero */
+    .hero-title{ font-weight:900; font-size:44px; letter-spacing:-1px; background: linear-gradient(180deg, #fff, rgba(255,255,255,0.2)); -webkit-background-clip:text; color:transparent; margin-bottom:8px; }
+
+    /* utilities */
+    .center { display:flex; align-items:center; justify-content:center; flex-direction:column; gap:8px; }
+    .small-muted { font-size:11px; color: rgba(255,255,255,0.32); text-transform:uppercase; letter-spacing:.18em; }
+
+    /* responsive */
+    @media (max-width:920px){ .grid-4{ grid-template-columns: repeat(2,1fr);} .hero-title{ font-size:36px; } }
+
+  </style>
+</head>
+<body>
+
+  <!-- ambient glow -->
+  <div id="glow-top" style="position:fixed;left:-15%;top:-25%;width:80vw;height:80vw;border-radius:50%;filter:blur(120px);background:var(--active-color);opacity:.12;z-index:0;"></div>
+
+  <!-- header -->
+  <header id="main-header" class="visible">
+    <div class="glass-pill" onclick="Navigation.to(1)"><div id="header-dot"></div><div id="displayUserHeader">Visitante</div></div>
+    <div class="glass-pill"><div id="displayInfodoseHeader" style="font-size:11px">Sistema</div><button onclick="Docs.refresh()" style="background:transparent;border:none;margin-left:8px;"><i data-lucide="refresh-cw" class="w-4 h-4"></i></button></div>
+  </header>
+
+  <!-- horizontal screens -->
+  <div id="universe-viewport" aria-hidden="false">
+    <!-- CORTEX (0) -->
+    <section class="screen-panel" id="view-cortex" aria-label="Córtex">
+      <div style="padding-top:90px; padding-left:24px; padding-right:24px; padding-bottom:24px; width:100%; display:flex; flex-direction:column; gap:12px; align-items:center;">
+        <div style="width:100%; max-width:980px; display:flex; justify-content:space-between; align-items:center;">
+          <h2 style="font-size:20px; font-weight:900; text-transform:uppercase;">Córtex</h2>
+          <div style="display:flex; gap:10px; font-size:12px; text-transform:uppercase; font-weight:700;">
+            <button id="tab-crystal" class="tab-btn active" onclick="Cortex.switch('crystal')">Cristal</button>
+            <button id="tab-train" class="tab-btn" onclick="Cortex.switch('train')">Matriz</button>
+          </div>
+        </div>
+
+        <div id="panel-crystal" style="width:100%; max-width:980px;">
+          <div id="crystal-list" style="display:flex;flex-direction:column;gap:12px;"></div>
+
+          <div class="glass-card" style="display:flex;gap:12px;align-items:center;">
+            <input id="crystal-input" placeholder="Fixar nova memória..." style="flex:1;background:transparent;border:none;color:#fff;outline:none;font-size:14px" />
+            <button onclick="Cortex.addCrystal()" style="background:transparent;color:var(--active-color);font-weight:800;text-transform:uppercase;">Salvar</button>
+          </div>
+        </div>
+
+        <div id="panel-train" class="hidden" style="width:100%; max-width:980px;">
+          <div class="glass-card" style="height:260px; display:flex;">
+            <textarea id="train-editor" style="flex:1;background:transparent;border:none;color:rgba(255,255,255,0.85);resize:none;outline:none;padding:6px;font-family:monospace;"></textarea>
+          </div>
+          <button onclick="Cortex.saveTrain()" class="glass-pill" style="width:100%;max-width:980px;margin-top:6px;">Aplicar Matriz</button>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- NEXUS (1): vertical scroller with full-screen sections -->
+    <section class="screen-panel" id="view-nexus" aria-label="Nexus">
+      <div id="nexus-scroll" class="vertical-scroll-container">
+
+        <!-- SECTION 1: HERO -->
+        <div class="v-section" id="section-hero">
+          <div class="center" style="padding-top:40px;">
+            <div class="hero-title" id="hero-title">Nexus</div>
+            <div class="small-muted">Pulso Dual</div>
+
+            <div style="height:28px;"></div>
+
+                 <!-- SECTION 1: ORB -->
+  <section class="section">
+    <div class="orb-wrapper" id="orb">
+      <div class="halo"></div>
+      <div class="symbol">
+        <svg width="160" height="160" viewBox="0 0 200 200">
+          <defs>
+            <linearGradient id="grad" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stop-color="#fff" stop-opacity="0.6"/>
+              <stop offset="100%" stop-color="#fff" stop-opacity="0.2"/>
+            </linearGradient>
+          </defs>
+          <circle cx="100" cy="100" r="90" stroke="url(#grad)" stroke-width="2" fill="none"/>
+          <line x1="100" y1="10" x2="100" y2="190" stroke="url(#grad)" stroke-width="3" opacity="0.2"/>
+          <path d="M100 10 A90 90 0 0 0 100 190" stroke="url(#grad)" stroke-width="6" fill="none"/>
+        </svg>
+      </div>
+    </div>
+    <p style="opacity:.3;margin-top:40px;">oi.DUAL!</p>
+  </section>
+</div>
+      </div>
+       
+
+        <!-- SECTION 2: PROTOCOLS -->
+        <div class="v-section" id="section-protocols">
+          <div style="width:100%; max-width:980px; display:flex; flex-direction:column; gap:12px; align-items:stretch;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <h3 style="font-weight:900; text-transform:uppercase;">Modulação de Estado</h3>
+              <div class="small-muted">Ajustes rápidos</div>
+            </div>
+
+            <div class="glass-card">
+              <div class="grid-4">
+                <div class="state-btn" data-action="Hiperfoco"><i data-lucide="zap" class="w-5 h-5"></i><div style="font-weight:700;font-size:12px;">Hiperfoco</div></div>
+                <div class="state-btn" data-action="Fluxo Criativo"><i data-lucide="sparkles" class="w-5 h-5"></i><div style="font-weight:700;font-size:12px;">Fluxo Criativo</div></div>
+                <div class="state-btn" data-action="Imersão Zen"><i data-lucide="moon" class="w-5 h-5"></i><div style="font-weight:700;font-size:12px;">Imersão Zen</div></div>
+                <div class="state-btn" data-action="Regeneração"><i data-lucide="waves" class="w-5 h-5"></i><div style="font-weight:700;font-size:12px;">Regeneração</div></div>
+              </div>
+            </div>
+
+            <div class="glass-card">
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div>
+                  <div style="font-weight:900; font-size:12px; text-transform:uppercase;">Ajuste de Chaves</div>
+                  <div class="small-muted">Controladores essenciais</div>
+                </div>
+                <button onclick="openSheet('protocols')" class="glass-pill">Abrir</button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- SECTION 3: KEYS / CONFIG -->
+        <div class="v-section" id="section-keys">
+          <div style="width:100%;max-width:980px;display:flex;flex-direction:column;gap:12px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <h3 style="font-weight:900;text-transform:uppercase;">Configuração de Chaves</h3>
+              <div class="small-muted">Segurança & Ferramentas</div>
+            </div>
+
+            <div class="glass-card">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                  <div style="font-weight:700">Gerenciar chaves</div>
+                  <div style="font-size:12px;color:rgba(255,255,255,0.5)">Toque para editar</div>
+                </div>
+                <button onclick="openSheet('keys')" class="glass-pill">Abrir</button>
+              </div>
+            </div>
+
+            <div class="glass-card">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                  <div style="font-weight:700">DualTube</div>
+                  <div style="font-size:12px;color:rgba(255,255,255,0.5)">Curadoria visual</div>
+                </div>
+                <button onclick="Navigation.to(2)" class="glass-pill">Ir</button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- DUALTUBE (2) -->
+    <section class="screen-panel" id="view-dualtube" style="background:#050505; padding-top:90px; padding-left:24px; padding-right:24px; padding-bottom:24px;">
+      <div style="width:100%; max-width:980px;">
+        <h2 style="font-weight:900">DualTube</h2>
+        <p class="small-muted">Curadoria Visual</p>
+        <div id="video-categories" style="margin-top:18px;"></div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- nav dots -->
+  <div style="position:fixed; left:50%; transform:translateX(-50%); bottom:20px; display:flex; gap:8px; z-index:130;">
+    <div id="dot-0" class="dot" style="width:8px;height:8px;border-radius:999px;background:rgba(255,255,255,0.12)"></div>
+    <div id="dot-1" class="dot" style="width:24px;height:8px;border-radius:999px;background:var(--active-color); box-shadow:0 0 12px var(--active-color)"></div>
+    <div id="dot-2" class="dot" style="width:8px;height:8px;border-radius:999px;background:rgba(255,255,255,0.12)"></div>
+  </div>
+
+  <!-- bottom-sheet & dimmer -->
+  <div id="sheet-dimmer"></div>
+  <div id="bottom-sheet" role="dialog" aria-modal="true" aria-hidden="true">
+    <div id="sheet-handle"></div>
+    <div id="sheet-content" style="padding:18px; overflow:auto; flex:1;"></div>
+  </div>
+
+  <!-- simple toast -->
+  <div id="di_toast" style="position:fixed; left:50%; transform:translateX(-50%); bottom:110px; z-index:300; display:flex; flex-direction:column; gap:8px; pointer-events:none;"></div>
+
+  <script>
+    // --- basic keys/state ---
+    const KEYS = {
+      USER:'di_userName', API:'di_apiKey', MODEL:'di_modelName', INFODOSE:'di_infodoseName',
+      TRAIN_TXT:'di_trainingText', TRAIN_FILE:'di_trainingFileName', TRAIN_ACTIVE:'di_trainingActive', CRYSTAL:'di_cristalizados'
+    };
+    const STATE = { screen:1, currentColor:'#7afff5', crystals:[] };
+
+    // start
+    window.addEventListener('load', () => {
+      lucide.createIcons();
+      initData();
+      attachNexusBehavior();
+      Navigation.to(1);
+    });
+
+    function initData(){
+      const user = localStorage.getItem(KEYS.USER) || 'Piloto';
+      const info = localStorage.getItem(KEYS.INFODOSE) || 'FUSION';
+      document.getElementById('displayUserHeader').innerText = user;
+      document.getElementById('displayInfodoseHeader').innerText = info;
+      document.getElementById('hero-title').innerText = info;
+      try{ STATE.crystals = JSON.parse(localStorage.getItem(KEYS.CRYSTAL) || '[]'); } catch(e){ STATE.crystals = []; }
+      Cortex.renderCrystals();
+      KeysManager.render();
+      DualTube.render();
+      // attach state buttons
+      document.querySelectorAll('.state-btn').forEach(b => b.addEventListener('click', e => { Atmosphere.set(b.dataset.action); }));
+    }
+
+    // --- Toast util ---
+    function toast(m, time=2300){
+      const t = document.getElementById('di_toast');
+      const el = document.createElement('div');
+      el.style.background = 'rgba(0,0,0,0.72)';
+      el.style.padding = '10px 16px';
+      el.style.borderRadius = '12px';
+      el.style.border = `1px solid ${STATE.currentColor}`;
+      el.style.color = STATE.currentColor;
+      el.style.fontWeight = 800;
+      el.innerText = m;
+      t.appendChild(el);
+      setTimeout(()=> el.remove(), time);
+    }
+
+    // --- Docs / Refresh ---
+    const Docs = {
+      snapshot:{},
+      init(){ this.snapshot.trainingText = localStorage.getItem(KEYS.TRAIN_TXT) || null; this.snapshot.trainingFile = localStorage.getItem(KEYS.TRAIN_FILE) || null; },
+      refresh(){ const updates=[]; const txt = localStorage.getItem(KEYS.TRAIN_TXT)||null; const file = localStorage.getItem(KEYS.TRAIN_FILE)||null; if(txt !== this.snapshot.trainingText) updates.push('di_trainingText'); if(file !== this.snapshot.trainingFile) updates.push('di_trainingFileName'); if(!updates.length) toast('Nenhuma alteração detectada nos documentos.'); else { toast('Atualizados: '+updates.join(', ')); this.snapshot.trainingText=txt; this.snapshot.trainingFile=file; } }
+    };
+
+    // --- Atmosphere states ---
+    const Atmosphere = {
+      set(name){
+        let color = '#7afff5', msg = name;
+        if(name === 'Hiperfoco'){ color='#3b82f6'; msg='Hiperfoco Ativado'; }
+        if(name === 'Fluxo Criativo'){ color='#a855f7'; msg='Fluxo Criativo Sintonizado'; }
+        if(name === 'Imersão Zen'){ color='#10b981'; msg='Imersão Zen Iniciada'; }
+        if(name === 'Regeneração'){ color='#7afff5'; msg='Frequência Regenerativa'; }
+        STATE.currentColor = color;
+        document.documentElement.style.setProperty('--active-color', color);
+        const orb = document.getElementById('orb-core'); if(orb) orb.style.background = color;
+        document.getElementById('hero-title').style.background = `linear-gradient(to bottom, white, ${color}44)`;
+        lucide.createIcons();
+        toast(msg);
+      }
+    };
+
+    // --- Navigation (horizontal) ---
+    const Navigation = {
+      to(idx){
+        STATE.screen = idx;
+        document.getElementById('universe-viewport').style.transform = `translateX(-${idx*100}vw)`;
+        ['dot-0','dot-1','dot-2'].forEach((id,i)=> {
+          const el = document.getElementById(id);
+          if(!el) return;
+          if(i===idx) el.style.background = STATE.currentColor; else el.style.background = 'rgba(255,255,255,0.12)';
+        });
+      }
+    };
+
+    // --- DualTube ---
+    const DualTube = {
+      data:[
+        {cat:'Trilhas e Ativações', vids:['Bt_rLbMjJDk','_0wVkryxanE','Id2NI9tv1r4'], desc:'Aromas, Arquétipos e Playlists'},
+        {cat:'Sinopses Essenciais', vids:['qldgs0aLdB0','FbutKMpd8MY','1L9_rFmIGJ8'], desc:'Dopamina, Espaço da Mente, Recompensa'},
+        {cat:'Ambiente e Mente', vids:['koKhjQKGJSc','KrtOVrk8aDk','6lt2JfJdGsY'], desc:'Poder das cortinas e o chão'}
+      ],
+      render(){
+        const c = document.getElementById('video-categories');
+        if(!c) return;
+        c.innerHTML = this.data.map(cat => {
+          return `<div style="margin-bottom:20px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;"><div><div style="font-weight:900">${cat.cat}</div><div style="font-size:12px;color:rgba(255,255,255,0.38)">${cat.desc}</div></div></div>
+                    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:8px;">
+                      ${cat.vids.map(id=>`<div class="glass-card" style="padding:0;cursor:pointer;" onclick="playVideo('${id}')"><img src="https://img.youtube.com/vi/${id}/mqdefault.jpg" style="width:100%;height:120px;object-fit:cover;display:block;"><div style="padding:8px;font-weight:800;">Reprod.</div></div>`).join('')}
+                    </div>
+                  </div>`;
+        }).join('');
+        lucide.createIcons();
+      }
+    };
+
+    function playVideo(id){
+      openSheet('video', `<div style="width:100%;height:56vw;max-height:420px;"><iframe width="100%" height="100%" src="https://www.youtube.com/embed/${id}?autoplay=1" frameborder="0" allowfullscreen></iframe></div>`);
+    }
+
+    // --- Cortex (crystals) ---
+    const Cortex = {
+      renderCrystals(){
+        const el = document.getElementById('crystal-list');
+        el.innerHTML = '';
+        if(!STATE.crystals || !STATE.crystals.length){ el.innerHTML = `<div class="glass-card">Nenhuma memória cristalizada</div>`; return; }
+        STATE.crystals.forEach(c => {
+          const div = document.createElement('div');
+          div.className = 'glass-card';
+          div.style.display = 'flex'; div.style.justifyContent='space-between'; div.style.alignItems='center';
+          div.innerHTML = `<div style="flex:1"><div style="font-weight:700">${escapeHtml(c.txt)}</div><div style="font-size:12px;color:rgba(255,255,255,0.4);margin-top:6px;">ID: ${c.id}</div></div>
+                           <div style="margin-left:12px;display:flex;flex-direction:column;gap:8px;">
+                             <button style="background:transparent;border:none;color:var(--active-color);font-weight:800;" onclick="openSheet('crystal', \`${escapeBackticks(c.txt)}\`)">Abrir</button>
+                             <button style="background:transparent;border:none;color:#ff6b6b;font-weight:800;" onclick="Cortex.delCrystal(${c.id})">Excluir</button>
+                           </div>`;
+          el.appendChild(div);
+        });
+      },
+      addCrystal(){
+        const inp = document.getElementById('crystal-input');
+        if(!inp || !inp.value.trim()) return;
+        const obj = { id: Date.now(), txt: inp.value.trim() };
+        STATE.crystals.unshift(obj);
+        localStorage.setItem(KEYS.CRYSTAL, JSON.stringify(STATE.crystals));
+        inp.value = '';
+        Cortex.renderCrystals();
+        toast('Memória Cristalizada');
+      },
+      delCrystal(id){
+        STATE.crystals = STATE.crystals.filter(c=>c.id!==id);
+        localStorage.setItem(KEYS.CRYSTAL, JSON.stringify(STATE.crystals));
+        Cortex.renderCrystals();
+      },
+      saveTrain(){ const t = document.getElementById('train-editor'); if(!t) return; localStorage.setItem(KEYS.TRAIN_TXT, t.value); localStorage.setItem(KEYS.TRAIN_ACTIVE, '1'); toast('Matriz Sincronizada'); }
+    };
+
+    // --- Keys Manager ---
+    const KeysManager = {
+      render(){
+        // hidden full view not part of this snippet; we populate mini list in sheet when opened
+      }
+    };
+
+    // --- Bottom sheet system (Apple-like) ---
+    const sheet = {
+      el: document.getElementById('bottom-sheet'),
+      dimmer: document.getElementById('sheet-dimmer'),
+      content: document.getElementById('sheet-content'),
+      open(type, html){
+        if(this.isOpen) return;
+        this.content.innerHTML = '';
+        if(type === 'protocols') this.content.appendChild(sheetProtocolContent());
+        else if(type === 'keys') this.content.appendChild(sheetKeysContent());
+        else if(type === 'crystal') this.content.innerHTML = `<div style="white-space:pre-wrap;">${html || ''}</div>`;
+        else if(type === 'video') this.content.innerHTML = html || '';
+        else this.content.innerHTML = html || 'Conteúdo';
+
+        this.el.classList.add('open');
+        this.el.setAttribute('aria-hidden','false');
+        this.dimmer.classList.add('visible');
+        document.body.classList.add('nexus-locked');
+        this.isOpen = true;
+      },
+      close(){
+        if(!this.isOpen) return;
+        this.el.classList.remove('open');
+        this.el.setAttribute('aria-hidden','true');
+        this.dimmer.classList.remove('visible');
+        document.body.classList.remove('nexus-locked');
+        this.isOpen = false;
+      },
+      initDrag(){
+        let startY=0, currentY=0, dragging=false, startTransform=0;
+        const sheetEl = this.el;
+        const onStart = (e) => {
+          dragging = true;
+          startY = e.touches ? e.touches[0].clientY : e.clientY;
+          sheetEl.style.transition = 'none';
+        };
+        const onMove = (e) => {
+          if(!dragging) return;
+          currentY = e.touches ? e.touches[0].clientY : e.clientY;
+          const dy = Math.max(0, currentY - startY); // only move down
+          sheetEl.style.transform = `translateY(${dy}px)`;
+          this.dimmer.style.opacity = `${Math.max(0, 1 - dy / 500)}`;
+          e.preventDefault();
+        };
+        const onEnd = (e) => {
+          if(!dragging) return;
+          dragging = false;
+          const dy = Math.max(0, currentY - startY);
+          sheetEl.style.transition = '';
+          sheetEl.style.transform = '';
+          this.dimmer.style.opacity = '';
+          // threshold
+          if(dy > window.innerHeight * 0.18) this.close();
+        };
+        // attach
+        sheetEl.addEventListener('touchstart', onStart, {passive:true});
+        sheetEl.addEventListener('touchmove', onMove, {passive:false});
+        sheetEl.addEventListener('touchend', onEnd, {passive:true});
+        // also wire handle click to close if dragged small
+        document.getElementById('sheet-handle').addEventListener('click', ()=> this.close());
+        // dimmer click closes
+        this.dimmer.addEventListener('click', ()=> this.close());
+      }
+    };
+    sheet.initDrag();
+
+    function openSheet(kind, html){
+      sheet.open(kind, html);
+    }
+
+    // sheet content builders
+    function sheetProtocolContent(){
+      const wrap = document.createElement('div');
+      wrap.innerHTML = `<h3 style="font-size:18px;font-weight:900;margin-bottom:8px;">Modulação de Estado</h3>
+        <p style="color:rgba(255,255,255,0.5);margin-bottom:12px;">Ajustes detalhados dos estados.</p>
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;">
+          <div class="glass-card" style="padding:12px;">
+            <div style="font-weight:800">Hiperfoco</div><div style="font-size:13px;color:rgba(255,255,255,0.4)">Aumenta concentração</div>
+          </div>
+          <div class="glass-card" style="padding:12px;">
+            <div style="font-weight:800">Fluxo Criativo</div><div style="font-size:13px;color:rgba(255,255,255,0.4)">Estimula ideias</div>
+          </div>
+          <div class="glass-card" style="padding:12px;">
+            <div style="font-weight:800">Imersão Zen</div><div style="font-size:13px;color:rgba(255,255,255,0.4)">Relaxamento profundo</div>
+          </div>
+          <div class="glass-card" style="padding:12px;">
+            <div style="font-weight:800">Regeneração</div><div style="font-size:13px;color:rgba(255,255,255,0.4)">Resset rápido</div>
+          </div>
+        </div>
+        <div style="height:16px;"></div>
+        <button onclick="sheet.close()" class="glass-pill" style="width:100%;">Fechar</button>`;
+      return wrap;
+    }
+
+    function sheetKeysContent(){
+      const wrap = document.createElement('div');
+      wrap.innerHTML = `<h3 style="font-size:18px;font-weight:900;margin-bottom:8px;">Configuração de Chaves</h3>
+        <p style="color:rgba(255,255,255,0.5);margin-bottom:12px;">Edite seus valores (persistência local).</p>
+        <div id="sheet-keys-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+        <div style="height:14px;"></div>
+        <div style="display:flex;gap:8px;"><button class="glass-pill" onclick="KeysManager.save()">Salvar</button><button class="glass-pill" onclick="sheet.close()">Fechar</button></div>`;
+      setTimeout(()=> populateSheetKeys(), 40);
+      return wrap;
+    }
+
+    function populateSheetKeys(){
+      const node = document.getElementById('sheet-keys-list');
+      if(!node) return;
+      node.innerHTML = Object.values(KEYS).map(k => {
+        const val = (localStorage.getItem(k) || '');
+        return `<div style="display:flex;flex-direction:column;"><label style="font-size:11px;color:rgba(255,255,255,0.5);font-weight:800">${k}</label>
+                <input data-key="${k}" value="${val}" style="background:transparent;border:1px solid rgba(255,255,255,0.06);padding:10px;border-radius:10px;color:#fff;"/></div>`;
+      }).join('');
+    }
+
+    // KeysManager save
+    const KeysManager = {
+      save(){
+        const inputs = Array.from(document.querySelectorAll('#sheet-keys-list input[data-key]'));
+        inputs.forEach(i => { if(i.value) localStorage.setItem(i.dataset.key, i.value); else localStorage.removeItem(i.dataset.key); });
+        toast('Chaves salvas — reiniciando visual...'); setTimeout(()=> location.reload(), 900);
+      }
+    };
+
+    // openSheet helper for crystal content: we already call openSheet('crystal', text)
+
+    // helper to escape HTML
+    function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+    function escapeBackticks(s){ return String(s).replace(/`/g,'\\`').replace(/\$/g,'\\$'); }
+
+    // --- Nexus scroll behavior: iOS-like physics + snap + header show/hide + parallax orb + elasticity ---
+    function attachNexusBehavior(){
+      const scrollEl = document.getElementById('nexus-scroll');
+      const header = document.getElementById('main-header');
+      const orb = document.getElementById('orbContainer');
+      if(!scrollEl || !header || !orb) return;
+
+      lucide.createIcons();
+
+      // header show/hide on vertical delta
+      let lastY = 0, lastTime = 0, lastScroll = 0, headerHidden = false;
+      let isTouching = false;
+
+      // debounce for scroll end to snap
+      let snapTimer = null;
+      function scheduleSnap(){
+        if(snapTimer) clearTimeout(snapTimer);
+        snapTimer = setTimeout(()=> { snapToNearest(); snapTimer = null; }, 110);
+      }
+
+      // snap to nearest section using smooth behavior
+      function snapToNearest(){
+        const sections = Array.from(scrollEl.querySelectorAll('.v-section'));
+        const top = scrollEl.scrollTop;
+        let nearest = sections[0], dist = Math.abs(sections[0].offsetTop - top);
+        sections.forEach(s => {
+          const d = Math.abs(s.offsetTop - top);
+          if(d < dist){ dist = d; nearest = s; }
+        });
+        // use native smooth scrolling
+        scrollEl.scrollTo({ top: nearest.offsetTop, behavior: 'smooth' });
+      }
+
+      // overscroll elasticity: small translate when at top or bottom while pulling
+      let pulling = false, startTouchY = 0, pullDistance = 0;
+      scrollEl.addEventListener('touchstart', (e) => {
+        isTouching = true;
+        lastY = e.touches[0].clientY;
+        lastTime = Date.now();
+        startTouchY = lastY;
+      }, {passive:true});
+
+      scrollEl.addEventListener('touchmove', (e) => {
+        const ty = e.touches[0].clientY;
+        const dy = ty - lastY;
+        // header hide/show by direction
+        if(Math.abs(dy) > 4){
+          if(dy < 0 && !headerHidden){ headerHidden = true; header.classList.add('header-hidden'); }
+          else if(dy > 0 && headerHidden){ headerHidden = false; header.classList.remove('header-hidden'); }
+        }
+        lastY = ty;
+        // overscroll when at top or bottom
+        const atTop = scrollEl.scrollTop <= 0;
+        const atBottom = Math.abs(scrollEl.scrollTop - (scrollEl.scrollHeight - scrollEl.clientHeight)) <= 1;
+        if((atTop && ty > startTouchY) || (atBottom && ty < startTouchY)){
+          // start pulling
+          pulling = true;
+          pullDistance = Math.min(160, Math.abs(ty - startTouchY));
+          // ease the translate
+          const ease = (1 - Math.pow(1 - (pullDistance/160), 2)) * (pullDistance/6);
+          scrollEl.style.transform = `translateY(${ (atTop ? pullDistance*0.4 : -pullDistance*0.4) }px)`;
+        } else if(pulling){
+          // release manual transform if moved back into bounds
+          pulling = false; pullDistance = 0; scrollEl.style.transition = 'transform 240ms ease'; scrollEl.style.transform = ''; setTimeout(()=> scrollEl.style.transition = '', 260);
+        }
+        // parallax orb: map scrollTop to translateY smaller value
+        const parallax = scrollEl.scrollTop * 0.24;
+        orb.style.transform = `translateY(${parallax}px) scale(${1 - Math.min(0.06, scrollEl.scrollTop/800)})`;
+        scheduleSnap();
+      }, {passive:false});
+
+      scrollEl.addEventListener('touchend', (e) => {
+        isTouching = false;
+        if(pulling){
+          pulling = false; scrollEl.style.transition = 'transform 300ms cubic-bezier(.2,.9,.2,1)'; scrollEl.style.transform = '';
+          setTimeout(()=> scrollEl.style.transition = '', 320);
+        }
+        scheduleSnap();
+      });
+
+      // also handle mouse wheel + scroll events for non-touch
+      let lastScrollTime = 0;
+      scrollEl.addEventListener('scroll', (e) => {
+        // parallax
+        const parallax = scrollEl.scrollTop * 0.24;
+        orb.style.transform = `translateY(${parallax}px) scale(${1 - Math.min(0.06, scrollEl.scrollTop/800)})`;
+        scheduleSnap();
+
+        // header visibility by velocity
+        const now = Date.now();
+        const deltaT = Math.max(16, now - lastScrollTime);
+        const deltaY = scrollEl.scrollTop - lastScroll;
+        if(Math.abs(deltaY) > 6){
+          if(deltaY > 0 && !headerHidden){ headerHidden = true; header.classList.add('header-hidden'); }
+          else if(deltaY < 0 && headerHidden){ headerHidden = false; header.classList.remove('header-hidden'); }
+        }
+        lastScroll = scrollEl.scrollTop;
+        lastScrollTime = now;
+      }, {passive:true});
+
+      // improve keyboard accessibility: allow arrow keys to snap between sections when focus in nexus
+      scrollEl.addEventListener('keydown', (e) => {
+        if(e.key === 'ArrowDown'){ e.preventDefault(); snapToRelative(1); }
+        if(e.key === 'ArrowUp'){ e.preventDefault(); snapToRelative(-1); }
+      });
+
+      function snapToRelative(dir){
+        const sections = Array.from(scrollEl.querySelectorAll('.v-section'));
+        const top = scrollEl.scrollTop;
+        let idx = sections.findIndex(s => s.offsetTop >= top - 2);
+        if(idx === -1) idx = 0;
+        let newIdx = Math.max(0, Math.min(sections.length-1, idx + dir));
+        scrollEl.scrollTo({ top: sections[newIdx].offsetTop, behavior:'smooth' });
+      }
+
+    } // end attachNexusBehavior
+
+    // --- Snap utility used earlier is internal to attachNexusBehavior ---
+
+    // --- Escape helper for sheet content already provided above ---
+
+    // small helper to open named sheet (protocols/keys)
+    function openSheet(kind){
+      if(kind === 'protocols') sheet.open('protocols');
+      else if(kind === 'keys') sheet.open('keys');
+    }
+
+    // allow opening crystals via Cortex.open (we used openSheet in render)
+    // nothing else required
+
+    // Accessibility: allow escape to close sheet
+    document.addEventListener('keydown', (e) => {
+      if(e.key === 'Escape') sheet.close();
+    });
+
+    // finish initial rendering icons
+    lucide.createIcons();
+  </script>
+</body>
+</html>
