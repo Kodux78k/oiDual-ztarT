@@ -1,0 +1,1122 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Fusion OS v27 — Premium Dual</title>
+
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    :root {
+      --bg: #050505; /* Preto Profundo */
+      --glass: rgba(255, 255, 255, 0.03);
+      --glass-border: rgba(255, 255, 255, 0.08);
+      
+      /* DYNAMIC COLORS - CONTROLLED BY ARCHETYPE SYSTEM */
+      --active-color: #38BDF8; 
+      --active-glow: rgba(56, 189, 248, 0.18);
+      --accent-secondary: #0EA5E9;
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
+    
+    body { 
+      background: var(--bg); 
+      color: #fff; 
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial;
+      overflow: hidden; 
+      height: 100vh; width: 100vw;
+      user-select: none;
+    }
+
+    /* --- ATMOSPHERE --- */
+    .ambient-glow {
+        position: fixed; pointer-events: none; z-index: 0;
+        border-radius: 50%; filter: blur(100px); 
+        transition: background 1.5s ease, opacity 1.5s ease;
+    }
+    #glow-top { top: -20%; left: -20%; width: 80vw; height: 80vw; background: var(--active-color); opacity: 0.15; }
+    #glow-bottom { bottom: -20%; right: -20%; width: 80vw; height: 80vw; background: var(--accent-secondary); opacity: 0.1; }
+
+    /* --- VIEWPORT --- */
+    #universe-viewport {
+      display: flex;
+      width: 300vw; 
+      height: 100vh;
+      transform: translateX(-100vw);
+      transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+      position: relative; z-index: 10;
+    }
+
+    .screen-panel { 
+        width: 100vw; height: 100vh; flex-shrink: 0; position: relative; 
+        overflow: hidden; 
+    }
+
+    /* --- SCROLL SNAP SYSTEM (CINEMATIC SCROLL) --- */
+    .snap-container {
+        height: 100vh;
+        width: 100%;
+        overflow-y: scroll;
+        scroll-snap-type: y mandatory;
+        scroll-behavior: smooth;
+        /* Hide scrollbar for cleaner look */
+        scrollbar-width: none; 
+        -ms-overflow-style: none;
+    }
+    .snap-container::-webkit-scrollbar { display: none; }
+
+    .snap-section {
+        height: 100vh;
+        width: 100%;
+        scroll-snap-align: start;
+        scroll-snap-stop: always;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+    }
+
+    /* --- CORTEX & GENERAL UI --- */
+    .memory-card {
+      background: rgba(255,255,255,0.02);
+      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 24px;
+      transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+      position: relative; overflow: hidden;
+    }
+    .memory-card:hover { 
+      background: rgba(255,255,255,0.05); 
+      border-color: var(--active-color);
+      transform: translateY(-2px);
+    }
+    .memory-card.pinned { border-left: 3px solid var(--active-color); }
+
+    .tag-bubble {
+      font-size: 8px; font-weight: 800; letter-spacing: 0.05em;
+      padding: 4px 10px; border-radius: 100px;
+      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+      text-transform: uppercase; color: rgba(255,255,255,0.5);
+    }
+
+    .glass-card {
+        background: rgba(255,255,255,0.03);
+        border: 1px solid rgba(255,255,255,0.05);
+        backdrop-filter: blur(10px);
+        border-radius: 24px;
+    }
+
+    .matrix-item {
+        background: rgba(255,255,255,0.03);
+        border: 1px solid rgba(255,255,255,0.05);
+        border-radius: 18px;
+        transition: 0.3s;
+    }
+    .matrix-item.active {
+        border-color: var(--active-color);
+        background: var(--active-glow);
+    }
+
+    .custom-scroll::-webkit-scrollbar { width: 4px; }
+    .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+    .custom-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+
+    .glass-pill {
+      background: rgba(255,255,255,0.05);
+      backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 20px; padding: 6px 14px;
+      font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
+      text-transform: uppercase; color: #fff;
+    }
+    
+    .tab-btn { opacity: 0.3; transition: 0.3s; position: relative; padding: 10px 0; }
+    .tab-btn.active { opacity: 1; color: var(--active-color); }
+    .tab-btn.active::after { content:''; position: absolute; bottom:0; left:50%; transform:translateX(-50%); width:4px; height:4px; border-radius:50%; background: var(--active-color); box-shadow: 0 0 10px var(--active-color); }
+
+    /* VIDEO CAROUSEL */
+    .video-row { display: flex; gap: 16px; overflow-x: auto; padding: 10px 0; scrollbar-width: none; }
+    .video-row::-webkit-scrollbar { display: none; }
+    .video-card { width: 220px; flex-shrink: 0; position: relative; border-radius: 20px; overflow: hidden; }
+    .played-badge { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); font-size: 8px; font-weight: 900; padding: 4px 8px; border-radius: 8px; backdrop-filter: blur(4px); color: var(--active-color); }
+
+    #nav-indicator { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; z-index: 100; pointer-events: none; }
+    .dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.2); transition: 0.4s; }
+    .dot.active { width: 30px; background: var(--active-color); border-radius: 10px; }
+
+    .text-dynamic { color: var(--active-color); transition: color 1s ease; }
+    .border-dynamic { border-color: var(--active-color); transition: border-color 1s ease; }
+    
+    .orb-wrapper { transition: all 0.6s cubic-bezier(0.23, 1, 0.32, 1); }
+    .orb-activated .halo { animation: pulse-halo 3s infinite; background: radial-gradient(circle, var(--active-color) 0%, transparent 70%); opacity: 0.2; }
+    @keyframes pulse-halo { 0%, 100% { transform: scale(1); opacity: 0.2; } 50% { transform: scale(1.4); opacity: 0.05; } }
+
+    .infodose-voice-btn { transition: all 0.2s; border: 1px solid transparent; opacity: 0.7; }
+    .infodose-voice-btn:hover { opacity: 1; background: rgba(255,255,255,0.1); }
+    .infodose-voice-btn.selected { border-color: var(--active-color); opacity: 1; background: var(--active-glow); }
+  </style>
+</head>
+<body>
+
+  <div id="glow-top" class="ambient-glow"></div>
+  <div id="glow-bottom" class="ambient-glow"></div>
+
+  <!-- HEADER -->
+  <header class="fixed top-0 left-0 right-0 z-[100] px-8 py-10 flex justify-between items-center pointer-events-none">
+    <div class="glass-pill flex items-center gap-3 pointer-events-auto cursor-pointer" onclick="Navigation.to(1)">
+      <div id="header-dot" class="w-1.5 h-1.5 rounded-full" style="background: var(--active-color); box-shadow: 0 0 8px var(--active-color); transition: background 1s;"></div>
+      <span id="displayUserHeader" class="tracking-widest">USER</span>
+    </div>
+    <div class="glass-pill pointer-events-auto flex items-center gap-2">
+       <span id="displayArchetypeBadge" class="text-dynamic font-black text-[9px]">...</span>
+       <span class="text-white/20">|</span>
+       <span id="displayInfodoseHeader" class="text-white/40">SYSTEM</span>
+    </div>
+  </header>
+
+  <div id="universe-viewport">
+      
+      <!-- SCREEN 0: CORTEX -->
+      <section class="screen-panel" id="view-cortex">
+          <div class="pt-32 px-8 h-full flex flex-col max-w-4xl mx-auto">
+              <div class="flex items-end justify-between mb-10">
+                  <div>
+                    <h2 class="text-4xl font-black uppercase tracking-tighter leading-none">Córtex</h2>
+                    <p class="text-[10px] text-white/30 uppercase tracking-[0.4em] mt-2 font-bold">Arquivo de Consciência</p>
+                  </div>
+                  <div class="flex gap-8 text-[11px] font-black uppercase tracking-widest">
+                      <button onclick="Cortex.switch('crystals')" id="tab-crystals" class="tab-btn active">Memórias</button>
+                      <button onclick="Cortex.switch('matrices')" id="tab-matrices" class="tab-btn">Matrizes</button>
+                  </div>
+              </div>
+
+              <!-- Crystals Panel -->
+              <div id="panel-crystals" class="flex-1 overflow-hidden flex flex-col">
+                  <div class="flex gap-4 mb-6">
+                      <div class="flex-1 glass-pill flex items-center px-4 py-3 bg-white/5 border-none">
+                          <i data-lucide="search" class="w-3.5 h-3.5 text-white/20 mr-3"></i>
+                          <input id="memory-search" oninput="Cortex.render()" class="bg-transparent border-none text-xs w-full text-white placeholder-white/20" placeholder="Buscar no subconsciente...">
+                      </div>
+                      <button onclick="Cortex.openNewMemory()" class="glass-pill bg-white/10 hover:bg-white/20 transition flex items-center gap-2 px-6">
+                          <i data-lucide="plus" class="w-3 h-3"></i>
+                          <span>Fixar</span>
+                      </button>
+                  </div>
+                  <div id="crystal-container" class="flex-1 overflow-y-auto custom-scroll pr-2 pb-32 space-y-4"></div>
+              </div>
+
+              <!-- Matrices Panel -->
+              <div id="panel-matrices" class="hidden flex-1 overflow-hidden flex flex-col">
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                      <div class="glass-card p-6 flex flex-col justify-between h-40">
+                          <p class="text-[10px] text-white/30 uppercase font-black tracking-widest">Status da Matriz</p>
+                          <h4 id="active-matrix-name" class="text-xl font-bold text-dynamic">Nenhuma Ativa</h4>
+                          <div class="flex gap-2 mt-4">
+                              <button onclick="Cortex.importMatrix()" class="glass-pill text-[9px] bg-white/5 border-white/10">Importar .MD</button>
+                              <button onclick="Cortex.createNewMatrix()" class="glass-pill text-[9px] bg-active-color/10 text-dynamic border-dynamic/20">Nova Matriz</button>
+                          </div>
+                      </div>
+                      <div class="glass-card p-6 flex flex-col justify-between h-40">
+                          <p class="text-[10px] text-white/30 uppercase font-black tracking-widest">Arquivos Locais</p>
+                          <div id="matrix-list-mini" class="flex-1 mt-2 overflow-y-auto custom-scroll space-y-2"></div>
+                      </div>
+                  </div>
+                  <div class="flex-1 glass-card p-6 flex flex-col mb-32">
+                      <div class="flex justify-between items-center mb-4">
+                          <span id="editor-title" class="text-[10px] font-black uppercase tracking-widest text-white/40">Editor de Consciência</span>
+                          <div class="flex gap-4">
+                              <button onclick="Cortex.exportMatrix()" class="text-white/20 hover:text-white transition"><i data-lucide="download" class="w-4 h-4"></i></button>
+                              <button onclick="Cortex.saveActiveMatrix()" class="text-dynamic font-black text-[10px] uppercase">Salvar Alterações</button>
+                          </div>
+                      </div>
+                      <textarea id="matrix-editor" class="flex-1 bg-transparent border-none text-sm font-mono text-white/60 resize-none outline-none custom-scroll" placeholder="Escreva aqui as diretrizes da nova matriz..."></textarea>
+                  </div>
+              </div>
+          </div>
+      </section>
+
+      <!-- SCREEN 1: NEXUS (SNAP SCROLL SYSTEM) -->
+      <section class="screen-panel" id="view-nexus">
+          <div id="nexus-vertical" class="snap-container">
+              
+              <!-- SECTION 1: ORB & HERO -->
+              <div class="snap-section">
+                  <div class="text-center mb-12 relative z-20">
+                      <h1 id="hero-title" class="text-7xl font-black tracking-tighter mb-4 bg-clip-text text-transparent bg-gradient-to-b from-white to-white/20 transition-all duration-1000">NEXUS</h1>
+                      <div id="nexus-status" class="flex items-center justify-center gap-3">
+                          <span class="w-10 h-[1px] bg-white/10"></span>
+                          <p id="archetype-status-text" class="text-[10px] uppercase tracking-[0.6em] text-white/30 font-light text-dynamic">Equilíbrio Ativo</p>
+                          <span class="w-10 h-[1px] bg-white/10"></span>
+                      </div>
+                  </div>
+
+                  <!-- ORB -->
+                  <div id="orbClickable" class="relative group cursor-grab active:cursor-grabbing p-16 transition-all duration-700"
+                       onmousedown="OrbDrag.start(event)" ontouchstart="OrbDrag.start(event)">
+                      <div class="orb-wrapper relative" id="orbContainer">
+                          <div class="halo absolute -inset-10 rounded-full blur-2xl transition-all duration-700"></div>
+                          <div class="relative z-10 flex items-center justify-center">
+                              <svg width="220" height="220" viewBox="0 0 200 200">
+                                  <defs>
+                                      <linearGradient id="orbGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                                          <stop offset="0%" stop-color="#fff" stop-opacity="0.8"/>
+                                          <stop offset="100%" stop-color="#fff" stop-opacity="0.2"/>
+                                      </linearGradient>
+                                  </defs>
+                                  <circle cx="100" cy="100" r="85" stroke="url(#orbGrad)" stroke-width="1.5" fill="none" opacity="0.3"/>
+                                  <circle cx="100" cy="100" r="60" stroke="url(#orbGrad)" stroke-width="0.5" fill="none" opacity="0.1"/>
+                                  <path d="M100 15 A85 85 0 0 0 100 185" stroke="url(#orbGrad)" stroke-width="4" fill="none" stroke-linecap="round"/>
+                                  <circle cx="100" cy="100" r="10" fill="var(--active-color)" class="shadow-lg transition-colors duration-1000"/>
+                              </svg>
+                          </div>
+                      </div>
+                  </div>
+
+                  <div class="absolute bottom-24 text-center space-y-2 opacity-30 group-hover:opacity-100 transition duration-1000 pointer-events-none">
+                      <p class="text-[9px] uppercase tracking-[0.4em] font-bold">Role para acessar</p>
+                      <div class="flex justify-center flex-col items-center gap-1 animate-bounce">
+                          <i data-lucide="chevron-down" class="w-4 h-4 text-dynamic"></i>
+                      </div>
+                  </div>
+              </div>
+
+              <!-- SECTION 2: CARDS / STATUS -->
+              <div class="snap-section px-8 bg-gradient-to-t from-black/50 to-transparent">
+                  <div class="max-w-4xl w-full">
+                    <h3 class="text-2xl font-black uppercase tracking-tighter mb-8 flex items-center gap-3">
+                        <i data-lucide="zap" class="w-5 h-5 text-dynamic"></i>
+                        Sinais <span class="text-dynamic" id="cards-archetype-name">...</span>
+                    </h3>
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="glass-card p-6 hover:bg-white/5 transition border border-white/5 hover:border-dynamic/30">
+                            <i data-lucide="heart" class="w-6 h-6 mb-4 text-white/40"></i>
+                            <div class="text-[10px] uppercase font-bold text-white/30">Frequência</div>
+                            <div class="text-lg font-bold mt-1">Favoritos</div>
+                        </div>
+                        <div class="glass-card p-6 hover:bg-white/5 transition border border-white/5 hover:border-dynamic/30 bg-active-color/5">
+                            <i data-lucide="user" class="w-6 h-6 mb-4 text-dynamic"></i>
+                            <div class="text-[10px] uppercase font-bold text-white/30">Meu Card</div>
+                            <div class="text-lg font-bold mt-1 text-dynamic">Ativo</div>
+                        </div>
+                        <div class="glass-card p-6 hover:bg-white/5 transition border border-white/5 hover:border-dynamic/30">
+                            <i data-lucide="bar-chart-2" class="w-6 h-6 mb-4 text-white/40"></i>
+                            <div class="text-[10px] uppercase font-bold text-white/30">Nível</div>
+                            <div class="text-lg font-bold mt-1">Sincronizado</div>
+                        </div>
+                        <div class="glass-card p-6 hover:bg-white/5 transition border border-white/5 hover:border-dynamic/30">
+                            <i data-lucide="radio" class="w-6 h-6 mb-4 text-white/40"></i>
+                            <div class="text-[10px] uppercase font-bold text-white/30">Sinal</div>
+                            <div class="text-lg font-bold mt-1">Estável</div>
+                        </div>
+                    </div>
+                  </div>
+              </div>
+
+              <!-- SECTION 3: DR. K / DYNAMIC -->
+              <div class="snap-section px-8 bg-gradient-to-b from-black/50 to-transparent">
+                  <div class="max-w-4xl w-full flex flex-col justify-center h-full">
+                      <h2 class="text-sm uppercase tracking-[0.2em] text-white/40 font-bold mb-6">Curadoria Dr. K</h2>
+                      
+                      <div class="glass-card p-8 mb-8 border-l-4 border-dynamic">
+                        <p id="drk-line" class="text-xl md:text-2xl font-light italic text-white/90 leading-relaxed">
+                          "O sistema responde ao silêncio. Respire antes de reagir."
+                        </p>
+                        <p class="text-[10px] uppercase tracking-widest text-dynamic mt-4 text-right">— Insight do Arquétipo</p>
+                      </div>
+
+                      <div id="archetype-video-suggestion" class="w-full aspect-video rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden relative group cursor-pointer shadow-2xl">
+                           <!-- Content filled by JS -->
+                           <div class="absolute inset-0 bg-black/40 flex items-center justify-center">
+                               <span class="text-xs uppercase tracking-widest animate-pulse">Sintonizando...</span>
+                           </div>
+                      </div>
+                  </div>
+              </div>
+
+          </div>
+      </section>
+
+      <!-- SCREEN 2: DUALTUBE -->
+      <section class="screen-panel custom-scroll overflow-y-auto bg-[#020202]" id="view-dualtube">
+          <div class="pt-32 px-8 h-full flex flex-col pb-40">
+              <div class="mb-12 flex justify-between items-end">
+                <div>
+                    <h2 class="text-4xl font-black text-white tracking-tighter uppercase">DualTube</h2>
+                    <p class="text-[10px] text-dynamic uppercase tracking-[0.4em] font-bold mt-2">Curadoria de Sinais</p>
+                </div>
+                <div class="text-right">
+                    <span id="dt-watched-count" class="text-3xl font-black text-white/10">0</span>
+                    <p class="text-[8px] uppercase text-white/20 font-bold tracking-widest">Vídeos</p>
+                </div>
+              </div>
+              <div id="video-categories" class="space-y-16"></div>
+          </div>
+      </section>
+      
+  </div>
+
+  <!-- NAVIGATION DOTS -->
+  <div id="nav-indicator">
+      <div class="dot" id="dot-0"></div>
+      <div class="dot active" id="dot-1"></div>
+      <div class="dot" id="dot-2"></div>
+  </div>
+
+  <!-- MODALS -->
+  <div id="modal-overlay" class="fixed inset-0 z-[500] bg-black/80 backdrop-blur-xl hidden flex items-center justify-center p-6">
+      <div id="modal-content" class="w-full max-w-lg glass-card p-8 scale-90 opacity-0 transition-all duration-300"></div>
+  </div>
+
+  <!-- PLAYER -->
+  <div id="player-overlay" class="fixed inset-0 z-[1000] bg-black hidden flex-col">
+      <div class="p-8 flex justify-between items-center">
+          <div class="flex flex-col">
+              <span class="text-[10px] text-dynamic font-black uppercase tracking-widest">Sessão Ativa</span>
+              <span id="playing-title" class="text-sm font-bold text-white/60">DualTube Stream</span>
+          </div>
+          <button onclick="closePlayer()" class="glass-pill border-red-500/20 text-red-500 hover:bg-red-500/10">Encerrar</button>
+      </div>
+      <div class="flex-1 flex items-center justify-center p-6">
+          <div id="yt-embed" class="w-full max-w-6xl aspect-video rounded-3xl overflow-hidden shadow-2xl border border-white/5 bg-[#050505]"></div>
+      </div>
+  </div>
+
+  <div id="di_toast" class="fixed bottom-32 left-1/2 -translate-x-1/2 z-[2000] pointer-events-none flex flex-col gap-2"></div>
+
+  <script>
+    /* ========== CONSTANTS & STATE ========== */
+    const KEYS = {
+        CORTEX: 'di_cortex_v23', 
+        USER: 'di_userName',
+        ARCHETYPE: 'di_activeArchetype',
+        INFODOS_NAME: 'di_infodosName',
+        STATS: 'di_videoStats',
+        TRAIN_TXT: 'di_trainingText'
+    };
+
+    /* --- PREMIUM NEUTRAL THEME (VOID MODE) --- */
+    const NEUTRAL_THEME = {
+        main: '#E5E5E5',       // Platinum / White
+        soft: 'rgba(255,255,255,0.03)', // Subtle glass
+        secondary: '#404040'   // Dark Gray
+    };
+
+    /* --- UNIFIED BRAIN (JSON CANÔNICO) --- */
+    const ARCHETYPES_DB = {
+      "ATLAS": {
+        "id": "atlas", "name": "Atlas", "desc": "Estrutura & Governo",
+        "colors": { "main": "#38BDF8", "soft": "rgba(56,189,248,0.18)", "secondary": "#0EA5E9" },
+        "drk": "A ordem externa reflete a clareza interna. Construa.",
+        "vid": "Bt_rLbMjJDk"
+      },
+      "NOVA": {
+        "id": "nova", "name": "Nova", "desc": "Inovação & Fluxo",
+        "colors": { "main": "#F97316", "soft": "rgba(249,115,22,0.18)", "secondary": "#FDBA74" },
+        "drk": "O erro é apenas um dado não processado. Itere.",
+        "vid": "qldgs0aLdB0"
+      },
+      "VITALIS": {
+        "id": "vitalis", "name": "Vitalis", "desc": "Energia & Ação",
+        "colors": { "main": "#22C55E", "soft": "rgba(34,197,94,0.18)", "secondary": "#4ADE80" },
+        "drk": "O corpo sabe antes da mente duvidar. Mova-se.",
+        "vid": "_0wVkryxanE"
+      },
+      "PULSE": {
+        "id": "pulse", "name": "Pulse", "desc": "Ritmo & Emoção",
+        "colors": { "main": "#EC4899", "soft": "rgba(236,72,153,0.18)", "secondary": "#F9A8D4" },
+        "drk": "Sinta a batida do caos e dance com ela.",
+        "vid": "Id2NI9tv1r4"
+      },
+      "ARTEMIS": {
+        "id": "artemis", "name": "Artemis", "desc": "Foco & Caça",
+        "colors": { "main": "#A855F7", "soft": "rgba(168,85,247,0.18)", "secondary": "#C4B5FD" },
+        "drk": "Defina o alvo. O resto é apenas ruído.",
+        "vid": "FbutKMpd8MY"
+      },
+      "SERENA": {
+        "id": "serena", "name": "Serena", "desc": "Paz & Harmonia",
+        "colors": { "main": "#38BDF8", "soft": "rgba(56,189,248,0.14)", "secondary": "#E0F2FE" },
+        "drk": "No centro do furacão, existe um ponto imóvel. Seja ele.",
+        "vid": "hfQ1L6fCfAo"
+      },
+      "KAOS": {
+        "id": "kaos", "name": "Kaos", "desc": "Mudança & Entropia",
+        "colors": { "main": "#FACC15", "soft": "rgba(250,204,21,0.18)", "secondary": "#FDE68A" },
+        "drk": "Quebre o padrão hoje. Amanhã nasce o novo.",
+        "vid": "Tq99vQNQ6dQ"
+      },
+      "GENUS": {
+        "id": "genus", "name": "Genus", "desc": "Criação & Arte",
+        "colors": { "main": "#E5E7EB", "soft": "rgba(229,231,235,0.12)", "secondary": "#9CA3AF" },
+        "drk": "A excelência habita nos detalhes que ninguém vê.",
+        "vid": "DTDfkHwuMic"
+      },
+      "LUMINE": {
+        "id": "lumine", "name": "Lumine", "desc": "Brilho & Carisma",
+        "colors": { "main": "#FDE047", "soft": "rgba(253,224,71,0.18)", "secondary": "#FACC15" },
+        "drk": "Irradie sem medo. A sombra é apenas falta de luz.",
+        "vid": "1L9_rFmIGJ8"
+      },
+      "SOLUS": {
+        "id": "solus", "name": "Solus", "desc": "Vazio & Verdade",
+        "colors": { "main": "#0EA5E9", "soft": "rgba(14,165,233,0.20)", "secondary": "#0369A1" },
+        "drk": "O silêncio revela mais que mil estímulos.",
+        "vid": "qldgs0aLdB0"
+      },
+      "RHEA": {
+        "id": "rhea", "name": "Rhea", "desc": "Cuidado & Raiz",
+        "colors": { "main": "#22C55E", "soft": "rgba(34,197,94,0.16)", "secondary": "#16A34A" },
+        "drk": "Nutra a raiz e o fruto virá naturalmente.",
+        "vid": "Bt_rLbMjJDk"
+      },
+      "HORUS": {
+        "id": "horus", "name": "Horus", "desc": "Visão & Estratégia",
+        "colors": { "main": "#5500FF", "soft": "rgba(85, 0, 255, 0.2)", "secondary": "#8B5CF6" },
+        "drk": "Observe o todo antes de agir no detalhe.",
+        "vid": "_0wVkryxanE"
+      },
+      "AION": {
+        "id": "aion", "name": "Aion", "desc": "Tempo & Evolução",
+        "colors": { "main": "#4F46E5", "soft": "rgba(79,70,229,0.20)", "secondary": "#A5B4FC" },
+        "drk": "O tempo não é linear. O agora é eterno.",
+        "vid": "Id2NI9tv1r4"
+      }
+    };
+
+    let STATE = {
+        screen: 1,
+        cortex: { crystals: [], matrices: [] },
+        activePanel: 'crystals',
+        editingMatrixId: null,
+        currentArchetype: 'VITALIS' 
+    };
+
+    /* ========== INITIALIZATION ========== */
+    window.onload = () => {
+        lucide.createIcons();
+        loadSystem();
+        setupNavigation();
+        ArchetypeSystem.init(); // Init the unified brain logic
+        Cortex.render();
+        DualTube.render();
+        Navigation.to(1);
+        
+        // Welcome Toast + TTS Logic
+        setTimeout(() => {
+            welcomeUser();
+        }, 1200);
+
+        // Safety Polyfill
+        if(!window.DiSystem) {
+             window.DiSystem = {
+                set: (k,v) => localStorage.setItem(k, typeof v==='object'?JSON.stringify(v):v),
+                get: (k) => localStorage.getItem(k),
+                pushHistory: (o) => console.log('[LOG] History:', o)
+             };
+        }
+    };
+
+    function welcomeUser() {
+        const name = localStorage.getItem(KEYS.INFODOS_NAME) || localStorage.getItem(KEYS.USER) || 'Piloto';
+        const arch = STATE.currentArchetype;
+        const msg = arch 
+            ? `Bem-vindo de volta, ${name}. Arquétipo ${arch} sincronizado.`
+            : `Bem-vindo, ${name}. Sistema em repouso.`;
+
+        toast(msg);
+
+        // TTS Integration
+        if ('speechSynthesis' in window) {
+            // Cancel any previous speech to avoid queue buildup
+            window.speechSynthesis.cancel();
+            
+            const u = new SpeechSynthesisUtterance(msg);
+            u.lang = 'pt-BR';
+            u.rate = 1.1; // Slightly faster for tech feel
+            u.volume = 0.8;
+            window.speechSynthesis.speak(u);
+        }
+    }
+
+    function loadSystem() {
+        // Load Cortex
+        const saved = localStorage.getItem(KEYS.CORTEX);
+        if (saved) {
+            STATE.cortex = JSON.parse(saved);
+        } else {
+            STATE.cortex = {
+                crystals: [
+                    { id: 1, content: "O equilíbrio precede a performance.", tags: ["filosofia"], archetype: "VITALIS", pinned: true }
+                ],
+                matrices: [
+                    { id: 'm1', name: 'Treino Primário', content: 'Diretrizes iniciais do sistema...', active: true }
+                ]
+            };
+            saveCortex();
+        }
+
+        const user = localStorage.getItem(KEYS.USER) || 'Piloto';
+        document.getElementById('displayUserHeader').innerText = user;
+    }
+
+    function saveCortex() {
+        localStorage.setItem(KEYS.CORTEX, JSON.stringify(STATE.cortex));
+    }
+
+    /* ========== ARCHETYPE SYSTEM (THE UNIFIED BRAIN) ========== */
+    const ArchetypeSystem = {
+        init: () => {
+            const saved = localStorage.getItem(KEYS.ARCHETYPE);
+            if(saved && ARCHETYPES_DB[saved]) {
+                ArchetypeSystem.set(saved);
+            } else {
+                // FALLBACK MODE (No Archetype Active) - PREMIUM VOID MODE
+                ArchetypeSystem.renderDefault();
+            }
+        },
+
+        renderDefault: () => {
+            STATE.currentArchetype = null;
+            const customName = localStorage.getItem(KEYS.INFODOS_NAME);
+            const displayName = customName ? customName : 'Dual';
+
+            // UI Updates for Neutral State
+            document.getElementById('displayArchetypeBadge').innerText = displayName;
+            document.getElementById('hero-title').innerText = displayName;
+            
+            // Specific Neutral Indicators
+            document.getElementById('cards-archetype-name').innerText = 'Standby';
+            document.getElementById('archetype-status-text').innerText = 'Aguardando Sincronização';
+            
+            // Neutral Quote
+            document.getElementById('drk-line').innerText = '"O vazio é o campo de todas as possibilidades."';
+
+            // 🎨 PREMIUM NEUTRAL PALETTE (Black & White / Void Mode)
+            document.documentElement.style.setProperty('--active-color', NEUTRAL_THEME.main);
+            document.documentElement.style.setProperty('--active-glow', NEUTRAL_THEME.soft);
+            document.documentElement.style.setProperty('--accent-secondary', NEUTRAL_THEME.secondary);
+
+            // 🌫 ATMOSPHERE: Dim the glows significantly for the "Void" effect
+            const topGlow = document.getElementById('glow-top');
+            const botGlow = document.getElementById('glow-bottom');
+            if(topGlow) topGlow.style.opacity = '0.05'; // Almost invisible
+            if(botGlow) botGlow.style.opacity = '0.03';
+
+            console.log('[Dual Mode] Sistema em estado neutro (Void).');
+        },
+
+        set: (key) => {
+            if(!ARCHETYPES_DB[key]) return;
+            STATE.currentArchetype = key;
+            localStorage.setItem(KEYS.ARCHETYPE, key);
+            
+            const data = ARCHETYPES_DB[key];
+            
+            // 1. Update Global Colors (CSS Variables) - RESTORE COLOR
+            document.documentElement.style.setProperty('--active-color', data.colors.main);
+            document.documentElement.style.setProperty('--active-glow', data.colors.soft);
+            document.documentElement.style.setProperty('--accent-secondary', data.colors.secondary);
+
+            // Restore Atmosphere Opacity
+            const topGlow = document.getElementById('glow-top');
+            const botGlow = document.getElementById('glow-bottom');
+            if(topGlow) { topGlow.style.background = data.colors.main; topGlow.style.opacity = '0.15'; }
+            if(botGlow) { botGlow.style.background = data.colors.secondary; botGlow.style.opacity = '0.1'; }
+
+            // 2. Update UI Text
+            const customName = localStorage.getItem(KEYS.INFODOS_NAME);
+            const mainDisplay = customName ? customName : key;
+            
+            document.getElementById('displayArchetypeBadge').innerText = mainDisplay;
+            document.getElementById('hero-title').innerText = mainDisplay;
+            
+            document.getElementById('cards-archetype-name').innerText = key;
+            document.getElementById('archetype-status-text').innerText = data.desc;
+            
+            // 3. Update Dr. K Dynamic Quote
+            document.getElementById('drk-line').innerText = `"${data.drk}"`;
+
+            // 4. Update Recommendation Video
+            const vidContainer = document.getElementById('archetype-video-suggestion');
+            vidContainer.onclick = () => playVideo(data.vid, `Sintoniza: ${key}`);
+            vidContainer.innerHTML = `
+                <img src="https://img.youtube.com/vi/${data.vid}/mqdefault.jpg" class="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition duration-500 transform group-hover:scale-105">
+                <div class="absolute inset-0 bg-black/20 flex flex-col items-center justify-center backdrop-blur-[2px] group-hover:backdrop-blur-none transition">
+                    <i data-lucide="play-circle" class="w-12 h-12 text-white/80 group-hover:text-dynamic transition"></i>
+                    <span class="mt-2 text-[10px] uppercase tracking-widest font-bold">Recomendação ${key}</span>
+                </div>
+            `;
+            lucide.createIcons();
+        }
+    };
+
+    /* Expose global functions */
+    window.di_setActiveArchetype = ArchetypeSystem.set;
+    window.di_getActiveArchetype = () => STATE.currentArchetype;
+
+    /* ========== NAVIGATION & SCROLL LOGIC ========== */
+    function setupNavigation() {
+        const viewport = document.getElementById('universe-viewport');
+        let tsX = 0; let tsY = 0;
+
+        document.addEventListener('touchstart', e => { 
+            tsX = e.touches[0].clientX; 
+            tsY = e.touches[0].clientY;
+        }, {passive:true});
+
+        document.addEventListener('touchend', e => {
+            const dX = tsX - e.changedTouches[0].clientX;
+            const dY = tsY - e.changedTouches[0].clientY;
+            
+            // Intelligent Swipe
+            if(Math.abs(dX) > 80 && Math.abs(dX) > Math.abs(dY)) {
+                if(dX > 0 && STATE.screen < 2) Navigation.to(STATE.screen + 1);
+                if(dX < 0 && STATE.screen > 0) Navigation.to(STATE.screen - 1);
+            }
+        }, {passive:true});
+    }
+
+    const Navigation = {
+        to: (idx) => {
+            STATE.screen = idx;
+            document.getElementById('universe-viewport').style.transform = `translateX(-${idx * 100}vw)`;
+            [0,1,2].forEach(i => {
+                const dot = document.getElementById(`dot-${i}`);
+                if(dot) dot.classList.toggle('active', i === idx);
+            });
+            // Background ambient shift logic handled within ArchetypeSystem now for cleaner state management
+        }
+    };
+
+    const OrbDrag = {
+        active: false, startX: 0, el: null,
+        start: function(e) { 
+            this.active = true; 
+            this.startX = e.type.includes('mouse')?e.clientX:e.touches[0].clientX; 
+            this.el = document.getElementById('orbContainer');
+            const move = (ev) => this.move(ev);
+            const end = () => {
+                this.end();
+                window.removeEventListener('mousemove', move);
+                window.removeEventListener('mouseup', end);
+                window.removeEventListener('touchmove', move);
+                window.removeEventListener('touchend', end);
+            };
+            window.addEventListener('mousemove', move);
+            window.addEventListener('mouseup', end);
+            window.addEventListener('touchmove', move, {passive:false});
+            window.addEventListener('touchend', end);
+        },
+        move: function(e) {
+            if(!this.active) return;
+            const x = e.type.includes('mouse')?e.clientX:e.touches[0].clientX;
+            const diff = x - this.startX;
+            this.el.style.transform = `translateX(${diff/4}px) rotate(${diff/20}deg)`; 
+        },
+        end: function() {
+            if(!this.active) return;
+            this.active = false;
+            const style = window.getComputedStyle(this.el);
+            // FIXED: Use DOMMatrix instead of deprecated WebKitCSSMatrix
+            const matrix = new DOMMatrix(style.transform);
+            if(matrix.m41 > 70 && STATE.screen > 0) Navigation.to(STATE.screen - 1);
+            else if(matrix.m41 < -70 && STATE.screen < 2) Navigation.to(STATE.screen + 1);
+            this.el.style.transform = 'translateX(0) rotate(0)';
+        }
+    };
+
+    /* ========== CORTEX V2 LOGIC ========== */
+    const Cortex = {
+        switch: (tab) => {
+            STATE.activePanel = tab;
+            document.getElementById('panel-crystals').classList.toggle('hidden', tab !== 'crystals');
+            document.getElementById('panel-matrices').classList.toggle('hidden', tab !== 'matrices');
+            document.getElementById('tab-crystals').classList.toggle('active', tab === 'crystals');
+            document.getElementById('tab-matrices').classList.toggle('active', tab === 'matrices');
+            Cortex.render();
+        },
+
+        render: () => {
+            if (STATE.activePanel === 'crystals') Cortex.renderCrystals();
+            else Cortex.renderMatrices();
+        },
+
+        renderCrystals: () => {
+            const container = document.getElementById('crystal-container');
+            const query = document.getElementById('memory-search').value.toLowerCase();
+            const filtered = STATE.cortex.crystals.filter(c => 
+                c.content.toLowerCase().includes(query) || 
+                (c.tags && c.tags.some(t => t.toLowerCase().includes(query)))
+            );
+            filtered.sort((a,b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
+
+            container.innerHTML = filtered.map(c => {
+                const archData = ARCHETYPES_DB[c.archetype] || ARCHETYPES_DB['VITALIS'];
+                const archColor = archData ? archData.colors.main : 'var(--active-color)';
+                return `
+                <div class="memory-card p-6 ${c.pinned ? 'pinned' : ''}">
+                    <div class="flex justify-between items-start mb-3">
+                        <div class="flex gap-2 flex-wrap">
+                            ${(c.tags||[]).map(t => `<span class="tag-bubble">${t}</span>`).join('')}
+                            ${c.archetype ? `<span class="tag-bubble border-dynamic/30" style="color:${archColor}; border-color:${archColor}">${c.archetype}</span>` : ''}
+                        </div>
+                        <div class="flex gap-3 opacity-20 hover:opacity-100 transition">
+                            <button onclick="Cortex.togglePin(${c.id})"><i data-lucide="pin" class="w-3.5 h-3.5 ${c.pinned ? 'text-dynamic fill-current' : ''}"></i></button>
+                            <button onclick="Cortex.deleteMemory(${c.id})"><i data-lucide="trash-2" class="w-3.5 h-3.5 text-red-500"></i></button>
+                        </div>
+                    </div>
+                    <p class="text-sm leading-relaxed text-white/80 font-medium italic">"${c.content}"</p>
+                </div>
+            `}).join('');
+            if(filtered.length === 0) container.innerHTML = `<p class="text-center text-white/10 py-20 text-xs uppercase tracking-widest">Nenhum cristal encontrado</p>`;
+            lucide.createIcons();
+        },
+
+        renderMatrices: () => {
+            const list = document.getElementById('matrix-list-mini');
+            if(!Array.isArray(STATE.cortex.matrices)) STATE.cortex.matrices = [];
+
+            const activeM = STATE.cortex.matrices.find(m => m.active);
+            document.getElementById('active-matrix-name').innerText = activeM ? activeM.name : 'Nenhuma Ativa';
+            
+            list.innerHTML = STATE.cortex.matrices.map(m => `
+                <div onclick="Cortex.loadToEditor('${m.id}')" class="matrix-item p-3 flex justify-between items-center cursor-pointer ${m.active ? 'active' : ''}">
+                    <span class="text-[10px] font-bold uppercase tracking-widest ${m.active ? 'text-dynamic' : 'text-white/40'}">${m.name}</span>
+                    <div class="flex gap-2">
+                        ${m.active ? '<span class="w-1.5 h-1.5 rounded-full bg-active-color shadow-[0_0_8px_var(--active-color)]"></span>' : ''}
+                        <button onclick="Cortex.deleteMatrix('${m.id}', event)" class="text-white/10 hover:text-red-500"><i data-lucide="x" class="w-3 h-3"></i></button>
+                    </div>
+                </div>
+            `).join('');
+            
+            if (!STATE.editingMatrixId && activeM) Cortex.loadToEditor(activeM.id);
+            lucide.createIcons();
+        },
+
+        /* ACTIONS */
+        openNewMemory: () => {
+            Modal.show(`
+                <h3 class="text-xl font-black uppercase mb-6 tracking-tight text-dynamic">Novo Cristal</h3>
+                <div class="space-y-4">
+                    <textarea id="new-mem-txt" class="w-full h-32 bg-white/5 rounded-2xl p-4 border border-white/10 text-sm outline-none focus:border-dynamic" placeholder="O que deseja cristalizar?"></textarea>
+                    <input id="new-mem-tags" class="w-full bg-white/5 rounded-xl p-3 border border-white/10 text-xs" placeholder="Tags (separadas por vírgula)">
+                    <div class="flex justify-between items-center mt-4">
+                        <span class="text-[9px] uppercase tracking-widest text-white/30">Contexto: ${STATE.currentArchetype || 'NEUTRO'}</span>
+                        <div class="flex gap-3">
+                            <button onclick="Modal.hide()" class="text-xs uppercase font-bold text-white/30">Cancelar</button>
+                            <button onclick="Cortex.saveNewMemory()" class="glass-pill bg-active-color/20 text-dynamic border-dynamic">Cristalizar</button>
+                        </div>
+                    </div>
+                </div>
+            `);
+        },
+
+        saveNewMemory: () => {
+            const content = document.getElementById('new-mem-txt').value;
+            const tags = document.getElementById('new-mem-tags').value.split(',').map(t => t.trim()).filter(t => t);
+            if(!content) return;
+
+            const newMem = {
+                id: Date.now(),
+                content,
+                tags,
+                archetype: STATE.currentArchetype, 
+                pinned: false
+            };
+            STATE.cortex.crystals.unshift(newMem);
+            saveCortex();
+            Cortex.render();
+            Modal.hide();
+            toast("Memória fixada.");
+        },
+
+        togglePin: (id) => {
+            const m = STATE.cortex.crystals.find(c => c.id === id);
+            if(m) m.pinned = !m.pinned;
+            saveCortex();
+            Cortex.render();
+        },
+
+        deleteMemory: (id) => {
+            STATE.cortex.crystals = STATE.cortex.crystals.filter(c => c.id !== id);
+            saveCortex();
+            Cortex.render();
+        },
+
+        /* MATRIX ACTIONS */
+        loadToEditor: (id) => {
+            const m = STATE.cortex.matrices.find(mx => mx.id === id);
+            if(!m) return;
+            STATE.editingMatrixId = id;
+            document.getElementById('editor-title').innerText = `Editando: ${m.name}`;
+            document.getElementById('matrix-editor').value = m.content;
+            Cortex.renderMatrices();
+        },
+
+        createNewMatrix: () => {
+            const name = prompt("Nome da nova matriz:");
+            if(!name) return;
+            const newM = { id: 'm' + Date.now(), name, content: '', active: false };
+            STATE.cortex.matrices.push(newM);
+            saveCortex();
+            Cortex.loadToEditor(newM.id);
+        },
+
+        saveActiveMatrix: () => {
+            const m = STATE.cortex.matrices.find(mx => mx.id === STATE.editingMatrixId);
+            if(!m) return;
+            m.content = document.getElementById('matrix-editor').value;
+            if(!STATE.cortex.matrices.find(x => x.active)) m.active = true;
+
+            saveCortex();
+            if(m.active) localStorage.setItem(KEYS.TRAIN_TXT, m.content);
+
+            toast("Matriz salva e sincronizada");
+        },
+
+        exportMatrix: () => {
+            const m = STATE.cortex.matrices.find(mx => mx.id === STATE.editingMatrixId);
+            if(!m) return;
+            const blob = new Blob([m.content], {type: 'text/markdown'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = `${m.name}.md`;
+            a.click();
+        },
+
+        importMatrix: () => {
+            const inp = document.createElement('input');
+            inp.type = 'file'; inp.accept = '.md,.txt';
+            inp.onchange = e => {
+                const file = e.target.files[0];
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    const newM = { id: 'm' + Date.now(), name: file.name.replace('.md', ''), content: ev.target.result, active: false };
+                    STATE.cortex.matrices.push(newM);
+                    saveCortex();
+                    Cortex.renderMatrices();
+                    toast("Matriz importada");
+                };
+                reader.readAsText(file);
+            };
+            inp.click();
+        },
+
+        deleteMatrix: (id, e) => {
+            e.stopPropagation();
+            if(STATE.cortex.matrices.length <= 1) return toast("Mantenha ao menos uma matriz.");
+            STATE.cortex.matrices = STATE.cortex.matrices.filter(m => m.id !== id);
+            if(STATE.editingMatrixId === id) STATE.editingMatrixId = null;
+            saveCortex();
+            Cortex.renderMatrices();
+        }
+    };
+
+    /* ========== DUALTUBE LOGIC ========== */
+    const DualTube = {
+        data: [
+            { cat: 'Frequências e Rituais', vids: ["Bt_rLbMjJDk", "_0wVkryxanE", "Id2NI9tv1r4"], desc: 'Ambientação, Aromas e Ativação' },
+            { cat: 'Arquitetura Cognitiva', vids: ["qldgs0aLdB0", "FbutKMpd8MY", "1L9_rFmIGJ8"], desc: 'Dopamina, Foco e Subconsciente' },
+            { cat: 'Meditações Profundas', vids: ["hfQ1L6fCfAo", "Tq99vQNQ6dQ", "DTDfkHwuMic"], desc: 'Deriva, Navegação e Silêncio' }
+        ],
+        render: () => {
+            const container = document.getElementById('video-categories');
+            const stats = JSON.parse(localStorage.getItem(KEYS.STATS) || '{}');
+            
+            container.innerHTML = DualTube.data.map(c => `
+                <div class="space-y-6">
+                    <div class="flex flex-col">
+                        <h4 class="text-sm font-black uppercase tracking-[0.3em] text-white/80">${c.cat}</h4>
+                        <p class="text-[9px] text-white/20 uppercase tracking-[0.2em] mt-1">${c.desc}</p>
+                    </div>
+                    <div class="video-row">
+                        ${c.vids.map(id => `
+                            <div onclick="playVideo('${id}', '${c.cat}')" class="video-card glass-card group cursor-pointer active:scale-95 transition duration-500 ${stats[id] ? 'border-dynamic/20' : ''}">
+                                ${stats[id] ? '<div class="played-badge">VISTO</div>' : ''}
+                                <img src="https://img.youtube.com/vi/${id}/mqdefault.jpg" class="w-full h-32 object-cover opacity-60 group-hover:opacity-100 transition">
+                                <div class="p-4 bg-black/40 backdrop-blur-md flex items-center justify-between">
+                                    <span class="text-[9px] font-black uppercase text-white/40 tracking-widest">Sintonizar</span>
+                                    <i data-lucide="play" class="w-3 h-3 text-dynamic"></i>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+            document.getElementById('dt-watched-count').innerText = Object.keys(stats).length;
+            lucide.createIcons();
+        }
+    };
+
+    function playVideo(id, cat) {
+        document.getElementById('player-overlay').classList.replace('hidden', 'flex');
+        document.getElementById('playing-title').innerText = cat;
+        document.getElementById('yt-embed').innerHTML = `<iframe width="100%" height="100%" src="https://www.youtube.com/embed/${id}?autoplay=1&modestbranding=1&rel=0" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+        
+        let stats = JSON.parse(localStorage.getItem(KEYS.STATS) || '{}');
+        stats[id] = { ts: Date.now(), cat };
+        localStorage.setItem(KEYS.STATS, JSON.stringify(stats));
+        DualTube.render();
+    }
+
+    function closePlayer() {
+        document.getElementById('player-overlay').classList.replace('flex', 'hidden');
+        document.getElementById('yt-embed').innerHTML = '';
+    }
+
+    /* ========== UTILS ========== */
+    const Modal = {
+        show: (html) => {
+            const overlay = document.getElementById('modal-overlay');
+            const content = document.getElementById('modal-content');
+            content.innerHTML = html;
+            overlay.classList.replace('hidden', 'flex');
+            setTimeout(() => {
+                content.classList.replace('scale-90', 'scale-100');
+                content.classList.replace('opacity-100', 'opacity-100');
+            }, 10);
+            lucide.createIcons();
+        },
+        hide: () => {
+            const overlay = document.getElementById('modal-overlay');
+            const content = document.getElementById('modal-content');
+            content.classList.replace('scale-100', 'scale-90');
+            content.classList.replace('opacity-100', 'opacity-0');
+            setTimeout(() => overlay.classList.replace('flex', 'hidden'), 300);
+        }
+    };
+
+    function toast(m, time = 2500) {
+        const t = document.getElementById('di_toast');
+        const d = document.createElement('div');
+        d.className = "glass-pill bg-black/90 border-dynamic px-8 py-3 shadow-2xl backdrop-blur-xl text-[10px] font-black uppercase tracking-widest text-center animate-bounce";
+        d.style.color = "var(--active-color)";
+        d.innerText = m;
+        t.appendChild(d);
+        setTimeout(() => {
+            d.style.opacity = '0';
+            setTimeout(() => d.remove(), 500);
+        }, time);
+    }
+
+    /* ========================================================================================== */
+    /* ======= PATCH: INTEGRAR TREINAMENTO A.INFODOSE + MICRO-SCRIPTS AUTOMÁTICOS ======= */
+    /* ========================================================================================== */
+
+    const INFODOSE_MICRO_SCRIPTS = {
+        ATLAS: { open: "Erga-se. A estrutura do seu império começa agora.", ritual: "Respire fundo e visualize uma coluna de luz sustentando suas costas.", affirmation: "Eu sou o alicerce sobre o qual o futuro é construído." },
+        NOVA: { open: "E aí! O universo tá cheio de glitches esperando nossa correção criativa.", ritual: "Estale os dedos três vezes e sorria para o nada. A mágica começou.", affirmation: "Minha mente é um prisma que refrata o impossível em soluções." },
+        VITALIS: { open: "Sem hesitação. O tempo é agora e a energia está no pico.", ritual: "Três respirações explosivas. Sinta o sangue acordar.", affirmation: "Eu sou a força motriz que transforma intenção em resultado." },
+        PULSE: { open: "Sente o ritmo? O dia já começou a tocar nossa música.", ritual: "Feche os olhos e encontre a batida do seu coração. Sincronize.", affirmation: "Eu fluo com a corrente, dançando entre o caos e a ordem." },
+        ARTEMIS: { open: "Curso traçado. O horizonte nos chama, capitão.", ritual: "Olhe para o ponto mais distante que conseguir ver. Foque.", affirmation: "Minha vontade é a bússola; meu foco é o norte verdadeiro." },
+        LUMINE: { open: "Olha quanto brilho! Hoje vamos iluminar cada canto escuro.", ritual: "Imagine uma luz dourada saindo do seu peito e preenchendo a sala.", affirmation: "Eu irradio positividade e clareza por onde passo." },
+        SERENA: { open: "Calma. O mundo lá fora gira, mas aqui dentro há paz.", ritual: "Uma mão no peito, outra na barriga. Sinta o quietude.", affirmation: "No silêncio do meu centro, encontro todas as respostas." },
+        KAOS: { open: "Quebre o padrão. A ordem é só uma ilusão que vamos desmantelar.", ritual: "Faça um movimento brusco e inesperado. Acorde o sistema.", affirmation: "Eu abraço a incerteza como combustível para a revolução." },
+        GENUS: { open: "Precisão. Cada detalhe importa na obra que somos.", ritual: "Observe um objeto próximo. Note cada textura e cor por 10 segundos.", affirmation: "A excelência é meu hábito; a perfeição, meu horizonte." },
+        RHEA: { open: "Bem-vindo de volta. O dia te recebe com um abraço suave.", ritual: "Abrace a si mesmo por um instante. Sinta o conforto de ser quem é.", affirmation: "Eu cuido de mim para poder cuidar do mundo." },
+        SOLUS: { open: "No vazio, a verdade ecoa. Escute o que não é dito.", ritual: "Fique em silêncio absoluto até ouvir o som da sala.", affirmation: "Minha presença é suficiente. Minha mente é um santuário." },
+        HORUS: { open: "Visão panorâmica ativada. Estratégia definida. Executar.", ritual: "Visualize seu dia inteiro em um segundo, do início ao fim.", affirmation: "Eu vejo além do óbvio. Eu comando meu destino." },
+        AION: { open: "O tempo é apenas uma variável. Vamos ajustá-la.", ritual: "Visualize o futuro como se fosse uma memória.", affirmation: "Eu sou o arquiteto do meu próprio tempo." }
+    };
+
+    let INFODOSE_TRAINING_TEXT = `Treinamento Completo A.Infodose...\n\n-- ANEXO: MICRO-SCRIPTS --\n`;
+    Object.keys(INFODOSE_MICRO_SCRIPTS).forEach(key => {
+        const s = INFODOSE_MICRO_SCRIPTS[key];
+        INFODOSE_TRAINING_TEXT += `\n[${key}]\n- Abertura: "${s.open}"\n`;
+    });
+
+    function applyInfodoseTraining() {
+      try {
+        const activeArch = STATE.currentArchetype;
+        localStorage.setItem(KEYS.TRAIN_TXT, INFODOSE_TRAINING_TEXT);
+        toast(`Treinamento A.Infodose aplicado (${activeArch})`);
+        
+        // Auto-update prompt in clipboard for convenience
+        const script = INFODOSE_MICRO_SCRIPTS[activeArch];
+        const prompt = `[ATIVAR: ${activeArch}]\n[SCRIPT]: ${script.open}`;
+        navigator.clipboard.writeText(prompt);
+
+      } catch (e) { toast('Falha ao aplicar treino'); }
+    }
+
+    function showInfodoseModal() {
+      const id = 'infodose-modal';
+      if (document.getElementById(id)) { document.getElementById(id).remove(); }
+      const m = document.createElement('div');
+      m.id = id;
+      m.style.position = 'fixed'; m.style.left = '50%'; m.style.top = '10%'; m.style.transform = 'translateX(-50%)';
+      m.style.zIndex = 3000; m.style.width = 'min(920px, 92vw)'; m.style.maxHeight = '80vh'; m.style.overflow = 'auto';
+      m.style.background = 'rgba(10, 10, 12, 0.95)'; m.style.backdropFilter = 'blur(20px)';
+      m.style.border = '1px solid rgba(255,255,255,0.1)'; m.style.borderRadius = '16px'; m.style.padding = '24px';
+      
+      const currentVoice = STATE.currentArchetype || 'NEUTRO';
+
+      m.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px">
+          <div>
+            <strong class="text-lg text-white">Matriz de Treinamento (${currentVoice})</strong>
+            <p class="text-[10px] text-white/40 uppercase tracking-widest mt-1">Sincronizado com Archetype System</p>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="glass-pill bg-active-color/10 text-dynamic border-dynamic/30 hover:bg-active-color/20" id="infodose-apply-btn">Aplicar ao Haski</button>
+            <button class="glass-pill hover:bg-white/10" id="infodose-close-btn">Fechar</button>
+          </div>
+        </div>
+        <div class="custom-scroll" style="background:rgba(0,0,0,0.3); border-radius:8px; padding:16px; height:300px; overflow-y:auto; font-family:monospace; font-size:12px; color:rgba(255,255,255,0.7); white-space:pre-wrap; border:1px solid rgba(255,255,255,0.05); margin-bottom:20px;">${escapeHtml(INFODOSE_TRAINING_TEXT)}</div>
+        <div style="font-size:10px; uppercase; letter-spacing:1px; color:rgba(255,255,255,0.4); margin-bottom:8px">Mudar Arquétipo Global</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;" id="infodose-voices"></div>
+      `;
+      document.body.appendChild(m);
+
+      const voicesDiv = document.getElementById('infodose-voices');
+      voicesDiv.innerHTML = Object.keys(ARCHETYPES_DB).map(k => 
+        `<button class="infodose-voice-btn glass-pill text-[9px] ${k===currentVoice?'selected':''}" data-voice="${k}" style="${k===currentVoice?'border-color:'+ARCHETYPES_DB[k].colors.main:''}">${k}</button>`
+      ).join('');
+      
+      voicesDiv.querySelectorAll('button').forEach(b => {
+        b.addEventListener('click', (ev) => {
+          const v = ev.currentTarget.dataset.voice;
+          ArchetypeSystem.set(v); // Real global change
+          toast('Arquétipo Ativo: ' + v);
+          showInfodoseModal(); // Refresh modal to show new selection state
+        });
+      });
+
+      document.getElementById('infodose-apply-btn').addEventListener('click', () => { applyInfodoseTraining(); });
+      document.getElementById('infodose-close-btn').addEventListener('click', () => { m.remove(); });
+    }
+
+    /* 6) Botão Flutuante UI */
+    (function createInfodoseButton() {
+      setTimeout(() => {
+          const btnId = 'infodose-quick-btn';
+          if (document.getElementById(btnId)) return;
+          const btn = document.createElement('div');
+          btn.id = btnId;
+          btn.style.position = 'fixed';
+
+btn.style.left = '50%';
+btn.style.transform = 'translateX(-50%)';
+
+          btn.style.top = '100px'; 
+          btn.style.zIndex = 120;
+          btn.innerHTML = `<button class="glass-pill border-dynamic/20 text-dynamic hover:bg-active-color/10 transition cursor-pointer shadow-[0_0_15px_rgba(0,0,0,0.5)]">💊</button>`;
+          btn.addEventListener('click', showInfodoseModal);
+          document.body.appendChild(btn);
+      }, 1000); 
+    })();
+
+    function escapeHtml(s){ return (s+'').replace(/[&<>"']/g, function(m){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]); }); }
+
+  </script>
+</body>
+</html>
+
